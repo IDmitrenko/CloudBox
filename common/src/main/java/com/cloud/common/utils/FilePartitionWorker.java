@@ -60,7 +60,7 @@ public class FilePartitionWorker {
         }
     }
 
-    public static void sendFileFromServer(Path path, Channel out) {
+    public static void sendFileFromServer(Path path, io.netty.channel.Channel out) {
         try {
             byte[] fileData = Files.readAllBytes(path);
             int partsCount = fileData.length / PART_SIZE;
@@ -85,6 +85,7 @@ public class FilePartitionWorker {
         }
     }
 
+/*
     public static void savePartToFile(String rootPath, FileMessage fileMessage, FileWritingFinally finalAction) {
         RandomAccessFile raf = null;
         FileChannel outChannel = null;
@@ -93,6 +94,7 @@ public class FilePartitionWorker {
             if (!Files.exists(path)) {
                 Files.createFile(path);
             }
+
             raf = new RandomAccessFile(path.toFile(), "rw");
             outChannel = raf.getChannel();
             outChannel.position(fileMessage.getPartNumber() * FilePartitionWorker.PART_SIZE);
@@ -119,4 +121,5 @@ public class FilePartitionWorker {
             finalAction.action();
         }
     }
+*/
 }

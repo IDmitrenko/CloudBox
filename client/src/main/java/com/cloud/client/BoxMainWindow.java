@@ -170,7 +170,7 @@ public class BoxMainWindow extends JFrame {
 
         sendCommandPanel.setPreferredSize(new Dimension(800, 40));
         sendCommandPanel.add(sendButtonClient);
-        sendButtonClient.setPreferredSize(new Dimension(140, 30));
+        sendButtonClient.setPreferredSize(new Dimension(144, 30));
         sendCommandPanel.add(removeButtonClient);
         removeButtonClient.setPreferredSize(new Dimension(130, 30));
         sendCommandPanel.add(updateButtonClient);
