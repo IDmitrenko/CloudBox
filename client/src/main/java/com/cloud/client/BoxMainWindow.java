@@ -43,6 +43,8 @@ public class BoxMainWindow extends JFrame {
     private final JLabel titleClient;
     private final JLabel titleServer;
 
+    private final Network network;
+
     public BoxMainWindow() {
 
         setTitle("CLOUD");
@@ -186,5 +188,15 @@ public class BoxMainWindow extends JFrame {
         add(sendCommandPanel, BorderLayout.SOUTH);
 
         setVisible(true);
+
+        this.network = new Network();
+
+        LoginDialog loginDialog = new LoginDialog(this, network);
+        loginDialog.setVisible(true);
+
+        if (!loginDialog.isConnected()) {
+            System.exit(0);
+        }
+
     }
 }
