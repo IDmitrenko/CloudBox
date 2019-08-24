@@ -60,8 +60,8 @@ public class ProtocolHandler extends ChannelInboundHandlerAdapter {
 //            }
 //            if (msg instanceof FileRequest) {
 //               FileAbout fa = (FileAbout) msg;
-//               if (Files.exists(Paths.get("server_storage/" + fa.getName()))) {
-//                  FileMessage fm = new FileMessage(Paths.get("server_storage/" + fa.getName()));
+//               if (Files.exists(Paths.get("server/repository/" + fa.getName()))) {
+//                  FileMessage fm = new FileMessage(Paths.get("server/repository/" + fa.getName()));
                     // отправляем запрошенный файл с сервера (ответ)
 //                  ctx.writeAndFlush(fa);
 //                }
