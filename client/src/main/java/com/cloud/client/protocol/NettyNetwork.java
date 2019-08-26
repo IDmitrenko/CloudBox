@@ -98,6 +98,12 @@ public class NettyNetwork {
         buf.writeInt(am.getPassword().length());
         buf.writeBytes(am.getPassword().getBytes());
 
+        try {
+            currentChannel.writeAndFlush(buf).await();
+        } catch (InterruptedException ex) {
+            ex.printStackTrace();
+        }
+
     }
 
     public boolean isConnectionOpened() {

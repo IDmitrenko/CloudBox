@@ -12,9 +12,12 @@ import io.netty.handler.codec.serialization.ClassResolvers;
 import io.netty.handler.codec.serialization.ObjectDecoder;
 import io.netty.handler.codec.serialization.ObjectEncoder;
 
+import java.util.HashMap;
+
 public class Server {
     public void run() throws Exception {
-        //так называемая группа событий, используемая при создании каналов между серверами и клиентом
+
+        // группа событий, используемая при создании каналов между серверами и клиентом
         EventLoopGroup mainGroup = new NioEventLoopGroup();
         EventLoopGroup workerGroup = new NioEventLoopGroup();
         try {
