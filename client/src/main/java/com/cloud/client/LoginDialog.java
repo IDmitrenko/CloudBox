@@ -1,5 +1,7 @@
 package com.cloud.client;
 
+import com.cloud.common.transfer.AuthMessage;
+
 import javax.swing.*;
 import javax.swing.border.LineBorder;
 import java.awt.*;
@@ -16,6 +18,7 @@ public class LoginDialog extends JDialog {
     private JLabel lbPassword;
     private JButton btnLogin;
     private JButton btnCancel;
+    private AuthMessage authMessage;
 
     private boolean connected;
 
@@ -63,7 +66,8 @@ public class LoginDialog extends JDialog {
             @Override
             public void actionPerformed(ActionEvent e) {
                 try {
-                    network.authorize(tfUsername.getText(), String.valueOf(pfPassword.getPassword()));
+                    authMessage = new AuthMessage(tfUsername.getText(), String.valueOf(pfPassword.getPassword()));
+                    network.authorize(authMessage);
                     connected = true;
                 } catch (IOException ex) {
                     JOptionPane.showMessageDialog(LoginDialog.this,

@@ -1,6 +1,7 @@
 package com.cloud.client;
 
 import com.cloud.common.transfer.AbstractMessage;
+import com.cloud.common.transfer.AuthMessage;
 import io.netty.handler.codec.serialization.ObjectDecoderInputStream;
 import io.netty.handler.codec.serialization.ObjectEncoderOutputStream;
 
@@ -57,7 +58,7 @@ public class Network {
         return (AbstractMessage) obj;
     }
     
-    public void authorize(String login, String password) throws IOException {
+    public void authorize(AuthMessage authMessage) throws IOException {
 
     }
 

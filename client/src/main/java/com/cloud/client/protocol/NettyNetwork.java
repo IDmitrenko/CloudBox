@@ -41,10 +41,14 @@ public class NettyNetwork {
             clientBootstrap.handler(new ChannelInitializer<SocketChannel>() {
                 protected void initChannel(SocketChannel socketChannel) throws Exception {
                     // получение и обработка ответа
-                    socketChannel.pipeline().addLast();
+                    socketChannel.pipeline().addLast(
+                            new ClientHandler()
+                    );
                     // TODO нужно добавить Handler для получения ответа
                     // channel для обмена между сервером и клиентом
                     currentChannel = socketChannel;
+
+
                 }
             });
             ChannelFuture channelFuture = clientBootstrap.connect().sync();
@@ -59,17 +63,6 @@ public class NettyNetwork {
             }
         }
     }
-
-    /*
-    byteBuf = allocator.buffer(256);
-for (int i = 0; i < fullChunksCount; i++) {
-	is.read(buf);
-	System.out.println("Sending filechunk: " + Arrays.toString(buf));
-	byteBuf.writeBytes(buf);
-	ctx.writeAndFlush(byteBuf);
-	// byteBuf.clear();
-}
-     */
 
     public void sendData() {
         ByteBufAllocator allocator = new PooledByteBufAllocator();
@@ -90,18 +83,6 @@ for (int i = 0; i < fullChunksCount; i++) {
                 }
             }
         }
-
-//        buf.writeByte(15);
-//
-//        buf.writeLong(8L);
-//
-//
-//
-//        for (byte b : "test.txt".getBytes()) {
-//            buf.writeByte(b);
-//        }
-//
-//        currentChannel.writeAndFlush(buf);
 
     }
 
