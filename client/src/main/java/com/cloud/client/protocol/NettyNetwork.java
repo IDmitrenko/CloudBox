@@ -1,5 +1,6 @@
 package com.cloud.client.protocol;
 
+import com.cloud.common.transfer.AuthMessage;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
@@ -12,6 +13,7 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 
+import java.io.IOException;
 import java.net.InetSocketAddress;
 
 public class NettyNetwork {
@@ -83,6 +85,18 @@ public class NettyNetwork {
                 }
             }
         }
+
+    }
+
+    public void authorize(AuthMessage am) throws IOException {
+        ByteBufAllocator allocator = new PooledByteBufAllocator();
+        ByteBuf buf = allocator.buffer(16);
+
+        buf.writeInt(am.getLogin().length());
+        buf.writeBytes(am.getLogin().getBytes());
+
+        buf.writeInt(am.getPassword().length());
+        buf.writeBytes(am.getPassword().getBytes());
 
     }
 

@@ -1,5 +1,6 @@
 package com.cloud.client;
 
+import com.cloud.client.protocol.NettyNetwork;
 import com.cloud.common.transfer.AuthMessage;
 
 import javax.swing.*;
@@ -12,6 +13,7 @@ import java.io.IOException;
 public class LoginDialog extends JDialog {
 
     private Network network;
+    private NettyNetwork nettyNetwork;
     private JTextField tfUsername;
     private JPasswordField pfPassword;
     private JLabel lbUsername;
@@ -22,9 +24,9 @@ public class LoginDialog extends JDialog {
 
     private boolean connected;
 
-    public LoginDialog(Frame parent, Network network) {
+    public LoginDialog(Frame parent, NettyNetwork nettyNetwork) {
         super(parent, "Аутентификация пользователя", true);
-        this.network = network;
+        this.nettyNetwork = nettyNetwork;
 
         JPanel panel = new JPanel(new GridBagLayout());
         GridBagConstraints cs = new GridBagConstraints();
@@ -67,7 +69,7 @@ public class LoginDialog extends JDialog {
             public void actionPerformed(ActionEvent e) {
                 try {
                     authMessage = new AuthMessage(tfUsername.getText(), String.valueOf(pfPassword.getPassword()));
-                    network.authorize(authMessage);
+                    nettyNetwork.authorize(authMessage);
                     connected = true;
                 } catch (IOException ex) {
                     JOptionPane.showMessageDialog(LoginDialog.this,
