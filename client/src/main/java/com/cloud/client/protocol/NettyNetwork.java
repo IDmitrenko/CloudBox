@@ -32,6 +32,7 @@ public class NettyNetwork {
 
     public void start() {
         EventLoopGroup group = new NioEventLoopGroup();
+        // на клиенте исрользуется один объект EventLoopGroup
         try {
             Bootstrap clientBootstrap = new Bootstrap();
             clientBootstrap.group(group);

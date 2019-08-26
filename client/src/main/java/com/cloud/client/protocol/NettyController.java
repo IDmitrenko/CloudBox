@@ -28,11 +28,13 @@ public class NettyController implements Initializable {
     }
 
     public void refreshLocalFileList() {
+/*
         try {
             filesList.getItems().clear();
             Files.list(Paths.get("client/repository/")).map(p -> p.getFileName().toString()).forEach(o -> filesList.getItems().add(o));
         } catch (IOException e) {
             e.printStackTrace();
         }
+*/
     }
 }

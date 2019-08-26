@@ -14,17 +14,25 @@ import io.netty.handler.codec.serialization.ObjectEncoder;
 
 public class Server {
     public void run() throws Exception {
+        //так называемая группа событий, используемая при создании каналов между серверами и клиентом
         EventLoopGroup mainGroup = new NioEventLoopGroup();
         EventLoopGroup workerGroup = new NioEventLoopGroup();
         try {
+            // класс для инициализации сервера
             ServerBootstrap b = new ServerBootstrap();
+            // группа событий
             b.group(mainGroup, workerGroup)
+                    //говорим серверу о том, какой типа канала используется для общения.
+                    // Тут он является наследником от Channel
                     .channel(NioServerSocketChannel.class)
+                    //вызывается при каждом подключении, говоря системе о том,
+                    // что будет использовано для обработки сообщений
                     .childHandler(new ChannelInitializer<SocketChannel>() {
                         protected void initChannel(SocketChannel socketChannel) throws Exception {
                             socketChannel.pipeline().addLast(
                                     new ObjectDecoder(50 * 1024 * 1024, ClassResolvers.cacheDisabled(null)),
                                     new ObjectEncoder(),
+                                    // обработчик входящих сообщений от клиента
                                     new MainHandler()
                             );
                         }
