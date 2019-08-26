@@ -74,8 +74,7 @@ public class MainHandler extends ChannelInboundHandlerAdapter {
                     AuthMessage am = (AuthMessage) msg;
                     String login = am.getLogin();
                     String password = am.getPassword();
-                    LoginMap lm = new LoginMap();
-                    String nick = lm.g;
+                    String nick = LoginMap.getUser().get(login);
                     if (nick != null) {
                         authorized = true;
                         CommandMessage amAuthOk = new CommandMessage(CommandMessage.CMD_MSG_AUTH_OK);
