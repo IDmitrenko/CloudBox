@@ -192,6 +192,7 @@ public class BoxMainWindow extends JFrame {
         setVisible(true);
 
         this.network = new NettyNetwork();
+        network.start();
 
         LoginDialog loginDialog = new LoginDialog(this, network);
         loginDialog.setVisible(true);
