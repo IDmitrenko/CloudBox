@@ -8,6 +8,8 @@ import javax.swing.table.TableColumnModel;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class BoxMainWindow extends JFrame {
 
@@ -192,7 +194,9 @@ public class BoxMainWindow extends JFrame {
         setVisible(true);
 
         this.network = new NettyNetwork();
-        network.start();
+
+        ExecutorService executorService = Executors.newCachedThreadPool();
+        executorService.submit(() -> network.start());
 
         LoginDialog loginDialog = new LoginDialog(this, network);
         loginDialog.setVisible(true);

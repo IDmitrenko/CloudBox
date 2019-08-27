@@ -43,7 +43,7 @@ public class NettyNetwork {
             Bootstrap clientBootstrap = new Bootstrap();
             clientBootstrap.group(group);
             clientBootstrap.channel(NioSocketChannel.class);
-            clientBootstrap.remoteAddress(new InetSocketAddress("localhost", 8189));
+            clientBootstrap.remoteAddress(new InetSocketAddress("127.0.0.1", 8189));
             clientBootstrap.handler(new ChannelInitializer<SocketChannel>() {
                 protected void initChannel(SocketChannel socketChannel) throws Exception {
                     // получение и обработка ответа
@@ -52,7 +52,6 @@ public class NettyNetwork {
                             new ObjectEncoder(),
                             new ClientHandler()
                     );
-                    // TODO нужно добавить Handler для получения ответа
                     // channel для обмена между сервером и клиентом
                     currentChannel = socketChannel;
 
@@ -61,6 +60,8 @@ public class NettyNetwork {
             });
             ChannelFuture channelFuture = clientBootstrap.connect().sync();
             channelFuture.channel().closeFuture().sync();
+            //currentChannel = clientBootstrap.connect().sync().channel();
+            //channelFuture.channel().closeFuture().sync();
         } catch (Exception ex) {
             ex.printStackTrace();
         } finally {
@@ -109,7 +110,7 @@ public class NettyNetwork {
 //        try {
 //            currentChannel.writeAndFlush(buf).await();
 //            currentChannel.writeAndFlush(am).await();
-            sendMsg(am);
+        sendMsg(am);
 //        } catch (InterruptedException ex) {
 //            ex.printStackTrace();
 //        }
@@ -123,29 +124,11 @@ public class NettyNetwork {
      */
     public void sendMsg(final AbstractMessage msg) {
         try {
-          currentChannel.writeAndFlush(msg).await();
-//            out.writeObject(msg);
+            currentChannel.writeAndFlush(msg).await();
         } catch (InterruptedException ex) {
             ex.printStackTrace();
         }
     }
-
-/*
-    */
-/**
-     * Method to send message through network.
-     *
-     * @return obj
-     * @throws ClassNotFoundException if there is an issue
-     * @throws IOException            if there is an issue
-     *//*
-
-    static AbstractMessage readObject()
-            throws ClassNotFoundException, IOException {
-        Object obj = in.readObject();
-        return (AbstractMessage) obj;
-    }
-*/
 
     public boolean isConnectionOpened() {
         return currentChannel != null && currentChannel.isActive();
