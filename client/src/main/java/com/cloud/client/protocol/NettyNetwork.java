@@ -12,6 +12,9 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
+import io.netty.handler.codec.serialization.ClassResolvers;
+import io.netty.handler.codec.serialization.ObjectDecoder;
+import io.netty.handler.codec.serialization.ObjectEncoder;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -44,6 +47,8 @@ public class NettyNetwork {
                 protected void initChannel(SocketChannel socketChannel) throws Exception {
                     // получение и обработка ответа
                     socketChannel.pipeline().addLast(
+                            new ObjectDecoder(50 * 1024 * 1024, ClassResolvers.cacheDisabled(null)),
+                            new ObjectEncoder(),
                             new ClientHandler()
                     );
                     // TODO нужно добавить Handler для получения ответа
@@ -89,6 +94,7 @@ public class NettyNetwork {
     }
 
     public void authorize(AuthMessage am) throws IOException {
+/*
         ByteBufAllocator allocator = new PooledByteBufAllocator();
         ByteBuf buf = allocator.buffer(16);
 
@@ -97,9 +103,11 @@ public class NettyNetwork {
 
         buf.writeInt(am.getPassword().length());
         buf.writeBytes(am.getPassword().getBytes());
+*/
 
         try {
-            currentChannel.writeAndFlush(buf).await();
+//            currentChannel.writeAndFlush(buf).await();
+            currentChannel.writeAndFlush(am).await();
         } catch (InterruptedException ex) {
             ex.printStackTrace();
         }

@@ -33,6 +33,8 @@ public class Server {
                     .childHandler(new ChannelInitializer<SocketChannel>() {
                         protected void initChannel(SocketChannel socketChannel) throws Exception {
                             socketChannel.pipeline().addLast(
+                                    // максимальный размер объекта, который можем прочитать 50МБайт
+                                    // если объект будет больше - получим ошибку
                                     new ObjectDecoder(50 * 1024 * 1024, ClassResolvers.cacheDisabled(null)),
                                     new ObjectEncoder(),
                                     // обработчик входящих сообщений от клиента

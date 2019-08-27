@@ -1,5 +1,7 @@
 package com.cloud.client;
 
+import com.cloud.client.protocol.NettyNetwork;
+
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableColumnModel;
@@ -43,7 +45,7 @@ public class BoxMainWindow extends JFrame {
     private final JLabel titleClient;
     private final JLabel titleServer;
 
-    private final Network network;
+    private final NettyNetwork network;
 
     public BoxMainWindow() {
 
@@ -189,7 +191,7 @@ public class BoxMainWindow extends JFrame {
 
         setVisible(true);
 
-        this.network = new Network();
+        this.network = new NettyNetwork();
 
         LoginDialog loginDialog = new LoginDialog(this, network);
         loginDialog.setVisible(true);

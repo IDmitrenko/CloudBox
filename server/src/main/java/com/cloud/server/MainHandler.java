@@ -38,13 +38,18 @@ public class MainHandler extends ChannelInboundHandlerAdapter {
             }
 
             if (msg instanceof FileAbout) {
-                // получаем сообщение (объект)
+                // получаем сообщение (объект) имя файла
                 FileAbout fa = (FileAbout) msg;
                 if (Files.exists(Paths.get("server/repository/" + fa.getName()))) {
                     FileMessage fm = new FileMessage(Paths.get("server/repository/" + fa.getName()));
                     // отправляем запрошенный файл с сервера (ответ)
                     ctx.writeAndFlush(fa);
                 }
+            }
+
+            if (msg instanceof FileMessage) {
+                // получаем файл от клиента
+
             }
 
             if (msg instanceof CommandMessage) {
@@ -75,12 +80,13 @@ public class MainHandler extends ChannelInboundHandlerAdapter {
                     String login = am.getLogin();
                     String password = am.getPassword();
                     String nick = LoginMap.getUser().get(login);
-                    if (nick != null) {
+                    if (nick != null && password.equals(nick)) {
                         authorized = true;
                         CommandMessage amAuthOk = new CommandMessage(CommandMessage.CMD_MSG_AUTH_OK);
                         ChannelFuture future = ctx.writeAndFlush(amAuthOk).await();
-                        this.clientName = nick;
-                        ServerUtilities.sendFileList(ctx.channel(), nick);
+                        this.clientName = login;
+                        ServerUtilities.sendFileList(ctx.channel(), login);
+                        // ctx.pipeline().addLast(new ServerHandler(login));
                     } else {
                         ReferenceCountUtil.release(msg);
                     }
