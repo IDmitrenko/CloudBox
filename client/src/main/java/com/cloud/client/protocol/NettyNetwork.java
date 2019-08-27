@@ -1,5 +1,6 @@
 package com.cloud.client.protocol;
 
+import com.cloud.common.transfer.AbstractMessage;
 import com.cloud.common.transfer.AuthMessage;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBuf;
@@ -105,14 +106,46 @@ public class NettyNetwork {
         buf.writeBytes(am.getPassword().getBytes());
 */
 
-        try {
+//        try {
 //            currentChannel.writeAndFlush(buf).await();
-            currentChannel.writeAndFlush(am).await();
+//            currentChannel.writeAndFlush(am).await();
+            sendMsg(am);
+//        } catch (InterruptedException ex) {
+//            ex.printStackTrace();
+//        }
+
+    }
+
+    /**
+     * Method to send message through network.
+     *
+     * @param msg AbstractMessage
+     */
+    public void sendMsg(final AbstractMessage msg) {
+        try {
+          currentChannel.writeAndFlush(msg).await();
+//            out.writeObject(msg);
         } catch (InterruptedException ex) {
             ex.printStackTrace();
         }
-
     }
+
+/*
+    */
+/**
+     * Method to send message through network.
+     *
+     * @return obj
+     * @throws ClassNotFoundException if there is an issue
+     * @throws IOException            if there is an issue
+     *//*
+
+    static AbstractMessage readObject()
+            throws ClassNotFoundException, IOException {
+        Object obj = in.readObject();
+        return (AbstractMessage) obj;
+    }
+*/
 
     public boolean isConnectionOpened() {
         return currentChannel != null && currentChannel.isActive();
