@@ -88,7 +88,9 @@ public class MainHandler extends ChannelInboundHandlerAdapter {
                         ServerUtilities.sendFileList(ctx.channel(), login);
                         // ctx.pipeline().addLast(new ServerHandler(login));
                     } else {
-                        ReferenceCountUtil.release(msg);
+                        CommandMessage amAuthNot = new CommandMessage(CommandMessage.CMD_MSG_AUTH_NOT);
+                        ChannelFuture future = ctx.writeAndFlush(amAuthNot).await();
+//                        ReferenceCountUtil.release(msg);
                     }
                 } else {
                     ctx.fireChannelRead(msg);
@@ -97,6 +99,11 @@ public class MainHandler extends ChannelInboundHandlerAdapter {
         } finally {
             ReferenceCountUtil.release(msg);
         }
+    }
+
+    @Override
+    public void channelReadComplete(ChannelHandlerContext ctx) throws Exception {
+        ctx.flush();
     }
 
     @Override

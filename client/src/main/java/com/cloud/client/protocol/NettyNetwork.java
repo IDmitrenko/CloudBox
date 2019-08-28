@@ -1,7 +1,9 @@
 package com.cloud.client.protocol;
 
+import com.cloud.client.AuthException;
 import com.cloud.common.transfer.AbstractMessage;
 import com.cloud.common.transfer.AuthMessage;
+import com.cloud.common.transfer.CommandMessage;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
@@ -19,6 +21,8 @@ import io.netty.handler.codec.serialization.ObjectEncoder;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class NettyNetwork {
     private static NettyNetwork ourInstance = new NettyNetwork();
@@ -26,6 +30,8 @@ public class NettyNetwork {
     public static NettyNetwork getOurInstance() {
         return ourInstance;
     }
+    private static boolean isAuth = false;
+    private static Lock lock = new ReentrantLock();
 
     public NettyNetwork() {
     }
@@ -95,7 +101,7 @@ public class NettyNetwork {
 
     }
 
-    public void authorize(AuthMessage am) throws IOException {
+    public void authorize(AuthMessage am) throws IOException, AuthException {
 /*
         ByteBufAllocator allocator = new PooledByteBufAllocator();
         ByteBuf buf = allocator.buffer(16);
@@ -115,6 +121,20 @@ public class NettyNetwork {
 //            ex.printStackTrace();
 //        }
 
+    }
+
+    public boolean waitAuthorize() {
+        if (!isAuth) {
+            try {
+                lock.lock();
+                isAuth = true;
+            } finally {
+                lock.unlock();
+            }
+            return true;
+        } else {
+            return false;
+        }
     }
 
     /**

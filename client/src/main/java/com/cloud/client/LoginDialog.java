@@ -77,26 +77,43 @@ public class LoginDialog extends JDialog {
                             "Аутентификация",
                             JOptionPane.ERROR_MESSAGE);
                     return;
+                } catch (AuthException ex) {
+                    JOptionPane.showMessageDialog(LoginDialog.this,
+                            "Ошибка авторизации " + ex.getMessage(),
+                            "Авторизация",
+                            JOptionPane.ERROR_MESSAGE);
+                    return;
                 }
+
                 dispose();
             }
         });
 
         bp.add(btnCancel);
-        btnCancel.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                connected = false;
-                dispose();
-            }
-        });
+        btnCancel.addActionListener(new
 
-        getContentPane().add(panel, BorderLayout.CENTER);
-        getContentPane().add(bp, BorderLayout.PAGE_END);
+                                            ActionListener() {
+                                                @Override
+                                                public void actionPerformed(ActionEvent e) {
+                                                    connected = false;
+                                                    dispose();
+                                                }
+                                            });
+
+        getContentPane().
+
+                add(panel, BorderLayout.CENTER);
+
+        getContentPane().
+
+                add(bp, BorderLayout.PAGE_END);
 
         pack();
+
         setResizable(false);
+
         setLocationRelativeTo(parent);
+
     }
 
     public boolean isConnected() {
