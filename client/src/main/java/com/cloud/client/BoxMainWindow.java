@@ -10,6 +10,8 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class BoxMainWindow extends JFrame {
 
@@ -48,6 +50,7 @@ public class BoxMainWindow extends JFrame {
     private final JLabel titleServer;
 
     private final NettyNetwork network;
+
 
     public BoxMainWindow() {
 
@@ -193,7 +196,7 @@ public class BoxMainWindow extends JFrame {
 
         setVisible(true);
 
-        this.network = new NettyNetwork();
+        this.network = NettyNetwork.getOurInstance();
 
         ExecutorService executorService = Executors.newCachedThreadPool();
         executorService.submit(() -> network.start());

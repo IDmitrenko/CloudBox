@@ -10,6 +10,13 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 
 public class ClientHandler extends ChannelInboundHandlerAdapter {
+
+    private NettyNetwork nettyNetwork;
+
+    public ClientHandler(NettyNetwork nettyNetwork) {
+        this.nettyNetwork = nettyNetwork;
+    }
+
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) {
         try {
@@ -20,10 +27,9 @@ public class ClientHandler extends ChannelInboundHandlerAdapter {
                 CommandMessage cm = (CommandMessage) msg;
                 // авторизация прошла успешно
                 if (cm.getType() == CommandMessage.CMD_MSG_AUTH_OK) {
-
-
+                    nettyNetwork.waitAuthorize(true);
                 } else if (cm.getType() == CommandMessage.CMD_MSG_AUTH_NOT) {
-
+                    nettyNetwork.waitAuthorize(false);
                 }
                 // Загрузить файл с сервера
                 if (cm.getType() == CommandMessage.CMD_MSG_REQUEST_FILE_DOWNLOAD) {

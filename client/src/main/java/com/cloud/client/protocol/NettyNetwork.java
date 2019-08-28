@@ -25,15 +25,15 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
 public class NettyNetwork {
+    public NettyNetwork() {
+    }
+
+    private volatile boolean isAuth = false;
+    private Object lock = new Object();
     private static NettyNetwork ourInstance = new NettyNetwork();
 
     public static NettyNetwork getOurInstance() {
         return ourInstance;
-    }
-    private static boolean isAuth = false;
-    private static Lock lock = new ReentrantLock();
-
-    public NettyNetwork() {
     }
 
     private Channel currentChannel;
@@ -56,7 +56,7 @@ public class NettyNetwork {
                     socketChannel.pipeline().addLast(
                             new ObjectDecoder(50 * 1024 * 1024, ClassResolvers.cacheDisabled(null)),
                             new ObjectEncoder(),
-                            new ClientHandler()
+                            new ClientHandler(ourInstance)
                     );
                     // channel для обмена между сервером и клиентом
                     currentChannel = socketChannel;
@@ -101,7 +101,8 @@ public class NettyNetwork {
 
     }
 
-    public void authorize(AuthMessage am) throws IOException, AuthException {
+    public void authorize(AuthMessage am) throws IOException,
+            AuthException, InterruptedException {
 /*
         ByteBufAllocator allocator = new PooledByteBufAllocator();
         ByteBuf buf = allocator.buffer(16);
@@ -117,23 +118,22 @@ public class NettyNetwork {
 //            currentChannel.writeAndFlush(buf).await();
 //            currentChannel.writeAndFlush(am).await();
         sendMsg(am);
+        synchronized (lock) {
+            lock.wait();
+        }
+        if (!isAuth) {
+            throw new AuthException("Клиент " + am.getLogin() + " в системе не зарегистрирован!");
+        }
 //        } catch (InterruptedException ex) {
 //            ex.printStackTrace();
 //        }
 
     }
 
-    public boolean waitAuthorize() {
-        if (!isAuth) {
-            try {
-                lock.lock();
-                isAuth = true;
-            } finally {
-                lock.unlock();
-            }
-            return true;
-        } else {
-            return false;
+    public void waitAuthorize(boolean isAuthServer) {
+        isAuth = isAuthServer;
+        synchronized (lock) {
+            lock.notifyAll();
         }
     }
 

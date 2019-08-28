@@ -83,6 +83,12 @@ public class LoginDialog extends JDialog {
                             "Авторизация",
                             JOptionPane.ERROR_MESSAGE);
                     return;
+                } catch (InterruptedException ex) {
+                    JOptionPane.showMessageDialog(LoginDialog.this,
+                            "Произошла ошибка при ожидании ответа " + ex.getMessage(),
+                            "Авторизация",
+                            JOptionPane.ERROR_MESSAGE);
+                    return;
                 }
 
                 dispose();
@@ -90,15 +96,13 @@ public class LoginDialog extends JDialog {
         });
 
         bp.add(btnCancel);
-        btnCancel.addActionListener(new
-
-                                            ActionListener() {
-                                                @Override
-                                                public void actionPerformed(ActionEvent e) {
-                                                    connected = false;
-                                                    dispose();
-                                                }
-                                            });
+        btnCancel.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                connected = false;
+                dispose();
+            }
+        });
 
         getContentPane().
 
