@@ -179,7 +179,7 @@ public class NettyNetwork {
             arrServer = new String[rows][cols];
             for (int i = 0; i < rows; i++) {
                 arrServer[i][0] = fileList.get(i).getName();
-                arrServer[i][1] = String.valueOf(fileList.get(i).getSize());
+                arrServer[i][1] = String.valueOf(fileList.get(i).getSize()) + " bytes";
             }
         }
         listFileReciever.updateFileListServer(arrServer);
