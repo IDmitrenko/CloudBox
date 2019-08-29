@@ -36,9 +36,10 @@ public class MainWindow extends JFrame implements ListFileReciever {
     // Заголовки столбцов
     private Object[] columnsHeader = new String[] {"Имя файла", "Размер"};
     private final JTable tableClient;
-    private JTable tableServer;
+    private final JTable tableServer;
     // Модель данных таблицы
-    private DefaultTableModel tableModel;
+    private DefaultTableModel tableModelServer;
+    private DefaultTableModel tableModelClient;
     // Модель столбцов таблицы
     private TableColumnModel columnModel;
 
@@ -84,13 +85,6 @@ public class MainWindow extends JFrame implements ListFileReciever {
 //        add(scrollClient, BorderLayout.WEST);
 //        scrollClient.setPreferredSize(new Dimension(390, 720));
 
-        // Создание таблицы на основании модели данных
-        tableModel = new DefaultTableModel();
-        tableModel.setColumnIdentifiers(columnsHeader);
-        for (int i = 0; i < arrServer.length; i++) {
-            tableModel.addRow(arrServer[i]);
-        }
-
         fll = new FileListMessage(Paths.get(getClientRootPath()));
         List<FileAbout> filesList = fll.getFilesList();
         rows = filesList.size();
@@ -107,7 +101,17 @@ public class MainWindow extends JFrame implements ListFileReciever {
                 arrClient[i][1] = String.valueOf(filesList.get(i).getSize()) + " bytes";
             }
         }
-        tableClient = new JTable(arrClient, columnsHeader);
+
+        tableModelClient = new DefaultTableModel(arrClient.length, columnsHeader.length);
+        tableModelClient.setDataVector(arrClient, columnsHeader);
+/*
+        for (int i = 0; i < arrServer.length; i++) {
+            tableModelClient.addRow(arrClient[i]);
+        }
+*/
+
+//        tableClient = new JTable(arrClient, columnsHeader);
+        tableClient = new JTable(tableModelClient);
 
         tableClient.setAutoCreateRowSorter(true);
         // Получаем стандартную модель
@@ -132,6 +136,45 @@ public class MainWindow extends JFrame implements ListFileReciever {
 
         titleBox.add(titleServer);
         add(titleBox, BorderLayout.NORTH);
+
+        // Создание таблицы на основании модели данных
+        tableModelServer = new DefaultTableModel(arrServer.length, columnsHeader.length);
+        tableModelServer.setDataVector(arrServer, columnsHeader);
+/*
+        for (int i = 0; i < arrServer.length; i++) {
+            tableModelServer.addRow(arrServer[i]);
+        }
+*/
+        //        fileListServer = new JList<>();
+//        fileListModelServer = new DefaultListModel<>();
+//        fileListCellRenderServer = new FileListCellRender();
+//        fileListServer.setModel(fileListModelServer);
+//        fileListServer.setCellRenderer(fileListCellRenderServer);
+
+//        scrollServer = new JScrollPane(fileListServer,
+//                JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,
+//                JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+//        add(scrollServer, BorderLayout.EAST);
+//        scrollServer.setPreferredSize(new Dimension(390, 720));
+        tableServer = new JTable(tableModelServer);
+//        tableServer = new JTable(arrServer, columnsHeader);
+        tableServer.setAutoCreateRowSorter(true);
+        columnModel = tableServer.getColumnModel();
+/*
+        // Определение минимального и максимального размеров столбцов
+        Enumeration<TableColumn> e = columnModel.getColumns();
+        while ( e.hasMoreElements() ) {
+            TableColumn column = (TableColumn)e.nextElement();
+            column.setMinWidth(50);
+            column.setMaxWidth(200);
+        }
+*/
+        tableServer.setPreferredSize(new Dimension(390, 668));
+        add(tableServer, BorderLayout.EAST);
+
+        Box contents = new Box(BoxLayout.X_AXIS);
+        contents.add(new JScrollPane(tableClient));
+        contents.add(new JScrollPane(tableServer));
 
         sendCommandPanel = new JPanel();
         sendCommandPanel.setLayout(new BoxLayout(sendCommandPanel, BoxLayout.X_AXIS));
@@ -160,37 +203,8 @@ public class MainWindow extends JFrame implements ListFileReciever {
             }
         });
 
-//        fileListServer = new JList<>();
-//        fileListModelServer = new DefaultListModel<>();
-//        fileListCellRenderServer = new FileListCellRender();
-//        fileListServer.setModel(fileListModelServer);
-//        fileListServer.setCellRenderer(fileListCellRenderServer);
-
-//        scrollServer = new JScrollPane(fileListServer,
-//                JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,
-//                JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
-//        add(scrollServer, BorderLayout.EAST);
-//        scrollServer.setPreferredSize(new Dimension(390, 720));
-        tableServer = new JTable(arrServer, columnsHeader);
-        tableServer.setAutoCreateRowSorter(true);
-        columnModel = tableServer.getColumnModel();
-/*
-        // Определение минимального и максимального размеров столбцов
-        Enumeration<TableColumn> e = columnModel.getColumns();
-        while ( e.hasMoreElements() ) {
-            TableColumn column = (TableColumn)e.nextElement();
-            column.setMinWidth(50);
-            column.setMaxWidth(200);
-        }
-*/
-        tableServer.setPreferredSize(new Dimension(390, 668));
-        add(tableServer, BorderLayout.EAST);
-        Box contents = new Box(BoxLayout.X_AXIS);
-        contents.add(new JScrollPane(tableClient));
-        contents.add(new JScrollPane(tableServer));
 //        setContentPane(contents);
         getContentPane().add(contents);
-
 
         downloadButtonServer = new JButton("Скачать файл");
         downloadButtonServer.addActionListener(new ActionListener() {
@@ -255,7 +269,8 @@ public class MainWindow extends JFrame implements ListFileReciever {
         SwingUtilities.invokeLater(new Runnable() {
             @Override
             public void run() {
-
+                tableModelClient.setDataVector(fll, columnsHeader);
+                tableModelClient.fireTableDataChanged();
             }
         });
     }
@@ -266,8 +281,8 @@ public class MainWindow extends JFrame implements ListFileReciever {
         SwingUtilities.invokeLater(new Runnable() {
             @Override
             public void run() {
-                tableServer = new JTable(fls, columnsHeader);
-                tableModel.fireTableDataChanged();
+                tableModelServer.setDataVector(fls, columnsHeader);
+                tableModelServer.fireTableDataChanged();
             }
         });
     }
