@@ -1,9 +1,12 @@
 package com.cloud.client.protocol;
 
 import com.cloud.client.AuthException;
+import com.cloud.client.ListFileReciever;
 import com.cloud.common.transfer.AbstractMessage;
 import com.cloud.common.transfer.AuthMessage;
 import com.cloud.common.transfer.CommandMessage;
+import com.cloud.common.transfer.FileListMessage;
+import com.cloud.common.utils.FileAbout;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
@@ -21,22 +24,35 @@ import io.netty.handler.codec.serialization.ObjectEncoder;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.util.List;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
 public class NettyNetwork {
-    public NettyNetwork() {
+    private volatile boolean isAuth = false;
+
+    private ListFileReciever listFileReciever;
+
+    public void setListFileReciever(ListFileReciever listFileReciever) {
+        this.listFileReciever = listFileReciever;
     }
 
-    private volatile boolean isAuth = false;
-    private Object lock = new Object();
-    private static NettyNetwork ourInstance = new NettyNetwork();
+    public NettyNetwork() {
 
+    }
+
+    private Object lock = new Object();
+
+    private static NettyNetwork ourInstance = new NettyNetwork();
     public static NettyNetwork getOurInstance() {
         return ourInstance;
     }
 
     private Channel currentChannel;
+
+    private static int cols = 2;
+    private int rows;
+    private Object[][] arrServer;
 
     public Channel getCurrentChannel() {
         return currentChannel;
@@ -148,6 +164,25 @@ public class NettyNetwork {
         } catch (InterruptedException ex) {
             ex.printStackTrace();
         }
+    }
+
+    public void updateFileListServer(FileListMessage fls) {
+        // делаем двумерный массив
+        List<FileAbout> fileList = fls.getFilesList();
+        rows = fileList.size();
+        if (rows == 0) {
+            rows = 1;
+            arrServer = new String[rows][cols];
+            arrServer[0][0] = "     ";
+            arrServer[0][1] = "     ";
+        } else {
+            arrServer = new String[rows][cols];
+            for (int i = 0; i < rows; i++) {
+                arrServer[i][0] = fileList.get(i).getName();
+                arrServer[i][1] = String.valueOf(fileList.get(i).getSize());
+            }
+        }
+        listFileReciever.updateFileListServer(arrServer);
     }
 
     public boolean isConnectionOpened() {

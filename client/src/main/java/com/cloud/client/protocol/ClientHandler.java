@@ -1,6 +1,7 @@
 package com.cloud.client.protocol;
 
 import com.cloud.common.transfer.CommandMessage;
+import com.cloud.common.transfer.FileListMessage;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.util.ReferenceCountUtil;
@@ -23,6 +24,7 @@ public class ClientHandler extends ChannelInboundHandlerAdapter {
             if (msg == null) {
                 return;
             }
+
             if (msg instanceof CommandMessage) {
                 CommandMessage cm = (CommandMessage) msg;
                 // авторизация прошла успешно
@@ -35,6 +37,13 @@ public class ClientHandler extends ChannelInboundHandlerAdapter {
                 if (cm.getType() == CommandMessage.CMD_MSG_REQUEST_FILE_DOWNLOAD) {
                 }
             }
+
+            if (msg instanceof FileListMessage) {
+                FileListMessage flm = (FileListMessage) msg;
+                // пришел список файлов клиента на сервере
+                nettyNetwork.updateFileListServer(flm);
+            }
+
         } finally {
             ReferenceCountUtil.release(msg);
         }

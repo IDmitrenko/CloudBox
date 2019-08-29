@@ -1,6 +1,8 @@
 package com.cloud.client;
 
 import com.cloud.client.protocol.NettyNetwork;
+import com.cloud.common.transfer.FileListMessage;
+import com.cloud.common.utils.FileAbout;
 
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
@@ -8,26 +10,35 @@ import javax.swing.table.TableColumnModel;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
-public class BoxMainWindow extends JFrame {
+public class MainWindow extends JFrame implements ListFileReciever {
 
 //    private final JList<FileList> fileListClient;
 //    private final DefaultListModel<FileList> fileListModelClient;
 //    private final FileListCellRender fileListCellRenderClient;
 //    private final JScrollPane scrollClient;
     // Данные для таблиц
-    private Object[][] array = new String[][] {{"GuiHelper.java", "2464 bytes"},
-                                               {"SimpleTableTest", "3486 bytes"}};
+//    private Object[][] array = new String[][] {{"GuiHelper.java", "2464 bytes"},
+//                                               {"SimpleTableTest", "3486 bytes"}};
+    private Object[][] arrServer = new String[][] {{"    ", "    "}};
+    private Object[][] arrClient;
+    private int rows, cols;
+    
     // Заголовки столбцов
     private Object[] columnsHeader = new String[] {"Имя файла", "Размер"};
     private final JTable tableClient;
-    private final JTable tableServer;
+    private JTable tableServer;
     // Модель данных таблицы
-//    private DefaultTableModel tableModel;
+    private DefaultTableModel tableModel;
     // Модель столбцов таблицы
     private TableColumnModel columnModel;
 
@@ -51,8 +62,9 @@ public class BoxMainWindow extends JFrame {
 
     private final NettyNetwork network;
 
+    private FileListMessage fll;
 
-    public BoxMainWindow() {
+    public MainWindow() throws IOException {
 
         setTitle("CLOUD");
         setBounds(200, 200, 800, 800);
@@ -73,7 +85,30 @@ public class BoxMainWindow extends JFrame {
 //        scrollClient.setPreferredSize(new Dimension(390, 720));
 
         // Создание таблицы на основании модели данных
-        tableClient = new JTable(array, columnsHeader);
+        tableModel = new DefaultTableModel();
+        tableModel.setColumnIdentifiers(columnsHeader);
+        for (int i = 0; i < arrServer.length; i++) {
+            tableModel.addRow(arrServer[i]);
+        }
+
+        fll = new FileListMessage(Paths.get(getClientRootPath()));
+        List<FileAbout> filesList = fll.getFilesList();
+        rows = filesList.size();
+        cols = 2;
+        if (rows == 0) {
+            rows = 1;
+            arrClient = new String[rows][cols];
+            arrClient[0][0] = "     ";
+            arrClient[0][1] = "     ";
+        } else {
+            arrClient = new String[rows][cols];
+            for (int i = 0; i < rows; i++) {
+                arrClient[i][0] = filesList.get(i).getName();
+                arrClient[i][1] = String.valueOf(filesList.get(i).getSize()) + " bytes";
+            }
+        }
+        tableClient = new JTable(arrClient, columnsHeader);
+
         tableClient.setAutoCreateRowSorter(true);
         // Получаем стандартную модель
         columnModel = tableClient.getColumnModel();
@@ -83,14 +118,18 @@ public class BoxMainWindow extends JFrame {
 
         titleBox = new JPanel();
         titleBox.setLayout(new FlowLayout());
+
         titleClient = new JLabel("Локальное хранилище", SwingConstants.CENTER);
         titleClient.setPreferredSize(new Dimension(386, 20));
         Font f = titleClient.getFont();
         titleClient.setFont(f.deriveFont(f.getStyle() | Font.BOLD));
+
         titleBox.add(titleClient);
+
         titleServer = new JLabel("Облачное хранилище", SwingConstants.CENTER);
         titleServer.setPreferredSize(new Dimension(386, 20));
         titleServer.setFont(f.deriveFont(f.getStyle() | Font.BOLD));
+
         titleBox.add(titleServer);
         add(titleBox, BorderLayout.NORTH);
 
@@ -132,7 +171,7 @@ public class BoxMainWindow extends JFrame {
 //                JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
 //        add(scrollServer, BorderLayout.EAST);
 //        scrollServer.setPreferredSize(new Dimension(390, 720));
-        tableServer = new JTable(array, columnsHeader);
+        tableServer = new JTable(arrServer, columnsHeader);
         tableServer.setAutoCreateRowSorter(true);
         columnModel = tableServer.getColumnModel();
 /*
@@ -197,6 +236,7 @@ public class BoxMainWindow extends JFrame {
         setVisible(true);
 
         this.network = NettyNetwork.getOurInstance();
+        network.setListFileReciever(this);
 
         ExecutorService executorService = Executors.newCachedThreadPool();
         executorService.submit(() -> network.start());
@@ -208,5 +248,49 @@ public class BoxMainWindow extends JFrame {
             System.exit(0);
         }
 
+    }
+
+    @Override
+    public void updateFileListLocal(Object[][] fll) {
+        SwingUtilities.invokeLater(new Runnable() {
+            @Override
+            public void run() {
+
+            }
+        });
+    }
+
+    @Override
+    public void updateFileListServer(Object[][] fls) {
+        // возвратился двумерный массив (первый параметр JTable)
+        SwingUtilities.invokeLater(new Runnable() {
+            @Override
+            public void run() {
+                tableServer = new JTable(fls, columnsHeader);
+                tableModel.fireTableDataChanged();
+            }
+        });
+    }
+
+    public static FileListMessage getListFileClient() {
+        FileListMessage fll = null;
+        try {
+            fll = new FileListMessage(Paths.get(getClientRootPath()));
+        } catch (IOException ex) {
+            ex.printStackTrace();
+        }
+        return fll;
+    }
+    
+    private static String getClientRootPath() {
+        Path path = Paths.get("client/repository");
+        if (!Files.exists(path)) {
+            try {
+                Files.createDirectories(path);
+            } catch (IOException ex) {
+                ex.printStackTrace();
+            }
+        }
+        return path.toString();
     }
 }
