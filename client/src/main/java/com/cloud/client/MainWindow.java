@@ -2,9 +2,11 @@ package com.cloud.client;
 
 import com.cloud.client.protocol.NettyNetwork;
 import com.cloud.common.transfer.FileListMessage;
+import com.cloud.common.transfer.FileMessage;
 import com.cloud.common.utils.FileAbout;
 
 import javax.swing.*;
+import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableColumnModel;
 import java.awt.*;
@@ -17,8 +19,6 @@ import java.nio.file.Paths;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
 
 public class MainWindow extends JFrame implements ListFileReciever {
 
@@ -32,6 +32,7 @@ public class MainWindow extends JFrame implements ListFileReciever {
     private Object[][] arrServer = new String[][] {{"    ", "    "}};
     private Object[][] arrClient;
     private int rows, cols;
+    private static final String rootPath = "client/repository";
     
     // Заголовки столбцов
     private Object[] columnsHeader = new String[] {"Имя файла", "Размер"};
@@ -41,7 +42,8 @@ public class MainWindow extends JFrame implements ListFileReciever {
     private DefaultTableModel tableModelServer;
     private DefaultTableModel tableModelClient;
     // Модель столбцов таблицы
-    private TableColumnModel columnModel;
+    private TableColumnModel columnModelClient;
+    private TableColumnModel columnModelServer;
 
     private final JButton sendButtonClient;
     private final JButton removeButtonClient;
@@ -62,6 +64,7 @@ public class MainWindow extends JFrame implements ListFileReciever {
     private final JLabel titleServer;
 
     private final NettyNetwork network;
+    private String userName;
 
     private FileListMessage fll;
 
@@ -85,22 +88,7 @@ public class MainWindow extends JFrame implements ListFileReciever {
 //        add(scrollClient, BorderLayout.WEST);
 //        scrollClient.setPreferredSize(new Dimension(390, 720));
 
-        fll = new FileListMessage(Paths.get(getClientRootPath()));
-        List<FileAbout> filesList = fll.getFilesList();
-        rows = filesList.size();
-        cols = 2;
-        if (rows == 0) {
-            rows = 1;
-            arrClient = new String[rows][cols];
-            arrClient[0][0] = "     ";
-            arrClient[0][1] = "     ";
-        } else {
-            arrClient = new String[rows][cols];
-            for (int i = 0; i < rows; i++) {
-                arrClient[i][0] = filesList.get(i).getName();
-                arrClient[i][1] = String.valueOf(filesList.get(i).getSize()) + " bytes";
-            }
-        }
+        clientListFile();
 
         tableModelClient = new DefaultTableModel(arrClient.length, columnsHeader.length);
         tableModelClient.setDataVector(arrClient, columnsHeader);
@@ -115,7 +103,10 @@ public class MainWindow extends JFrame implements ListFileReciever {
 
         tableClient.setAutoCreateRowSorter(true);
         // Получаем стандартную модель
-        columnModel = tableClient.getColumnModel();
+        columnModelClient = tableClient.getColumnModel();
+        DefaultTableCellRenderer rightRendererClient = new DefaultTableCellRenderer();
+        rightRendererClient.setHorizontalAlignment(JLabel.RIGHT);
+        columnModelClient.getColumn(1).setCellRenderer(rightRendererClient);
 
         tableClient.setPreferredSize(new Dimension(390, 668));
         add(tableClient, BorderLayout.WEST);
@@ -156,10 +147,14 @@ public class MainWindow extends JFrame implements ListFileReciever {
 //                JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
 //        add(scrollServer, BorderLayout.EAST);
 //        scrollServer.setPreferredSize(new Dimension(390, 720));
+
         tableServer = new JTable(tableModelServer);
 //        tableServer = new JTable(arrServer, columnsHeader);
         tableServer.setAutoCreateRowSorter(true);
-        columnModel = tableServer.getColumnModel();
+        columnModelServer = tableServer.getColumnModel();
+        DefaultTableCellRenderer rightRendererServer = new DefaultTableCellRenderer();
+        rightRendererServer.setHorizontalAlignment(JLabel.RIGHT);
+        columnModelServer.getColumn(1).setCellRenderer(rightRendererServer);
 /*
         // Определение минимального и максимального размеров столбцов
         Enumeration<TableColumn> e = columnModel.getColumns();
@@ -179,19 +174,47 @@ public class MainWindow extends JFrame implements ListFileReciever {
         sendCommandPanel = new JPanel();
         sendCommandPanel.setLayout(new BoxLayout(sendCommandPanel, BoxLayout.X_AXIS));
 
-        sendButtonClient = new JButton("Отправить файл");
+        sendButtonClient = new JButton("Отправить файл"); // на сервер
         sendButtonClient.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-
+                // Номер выделенной строки
+                int idx = tableClient.getSelectedRow();
+                String nameFile = arrClient[tableClient.getSelectedRow()][0].toString();
+                Path path = Paths.get(rootPath + "/" + nameFile);
+                if (nameFile != null && !nameFile.trim().isEmpty() && Files.exists(path)) {
+                    try {
+                        FileMessage fm = new FileMessage(path, userName);
+                        network.sendMsg(fm);
+                    } catch (IOException ex) {
+                        ex.printStackTrace();
+                    }
+                } else {
+                    JOptionPane.showMessageDialog(MainWindow.this,
+                            "File does not exist! " + path,
+                            "Error",
+                            JOptionPane.ERROR_MESSAGE);
+                }
             }
         });
 
-        removeButtonClient = new JButton("Удалить файл");
+        removeButtonClient = new JButton("Удалить файл"); // у клиента
         removeButtonClient.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-
+                // Номер выделенной строки
+                int idx = tableClient.getSelectedRow();
+                String nameFile = arrClient[tableClient.getSelectedRow()][0].toString();
+                Path path = Paths.get(rootPath + "/" + nameFile);
+                if (nameFile != null && !nameFile.trim().isEmpty() && Files.exists(path)) {
+                    try {
+                        Files.delete(path);
+                    } catch (IOException ex) {
+                        ex.printStackTrace();
+                    }
+                    // удаление выделенной строки
+                    tableModelClient.removeRow(idx);
+                }
             }
         });
 
@@ -199,25 +222,37 @@ public class MainWindow extends JFrame implements ListFileReciever {
         updateButtonClient.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-
+                try {
+                    clientListFile();
+                } catch (IOException ex) {
+                    ex.printStackTrace();
+                }
+                updateFileListLocal(arrClient);
             }
         });
 
 //        setContentPane(contents);
         getContentPane().add(contents);
 
-        downloadButtonServer = new JButton("Скачать файл");
+        downloadButtonServer = new JButton("Скачать файл"); // с сервера
         downloadButtonServer.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
+                // Номер выделенной строки
+                int idx = tableServer.getSelectedRow();
 
             }
         });
 
-        removeButtonServer = new JButton("Удалить файл");
+        removeButtonServer = new JButton("Удалить файл"); // на сервере
         removeButtonServer.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
+                // Номер выделенной строки
+                int idx = tableServer.getSelectedRow();
+
+                // удаление выделенной строки
+                tableModelServer.removeRow(idx);
 
             }
         });
@@ -260,8 +295,29 @@ public class MainWindow extends JFrame implements ListFileReciever {
 
         if (!loginDialog.isConnected()) {
             System.exit(0);
+        } else {
+            userName = loginDialog.getUserName();
         }
 
+    }
+
+    private void clientListFile() throws IOException {
+        fll = new FileListMessage(Paths.get(getClientRootPath()));
+        List<FileAbout> filesList = fll.getFilesList();
+        rows = filesList.size();
+        cols = 2;
+        if (rows == 0) {
+            rows = 1;
+            arrClient = new String[rows][cols];
+            arrClient[0][0] = "     ";
+            arrClient[0][1] = "     ";
+        } else {
+            arrClient = new String[rows][cols];
+            for (int i = 0; i < rows; i++) {
+                arrClient[i][0] = filesList.get(i).getName();
+                arrClient[i][1] = String.valueOf(filesList.get(i).getSize()) + " bytes";
+            }
+        }
     }
 
     @Override
@@ -298,7 +354,7 @@ public class MainWindow extends JFrame implements ListFileReciever {
     }
     
     private static String getClientRootPath() {
-        Path path = Paths.get("client/repository");
+        Path path = Paths.get(rootPath);
         if (!Files.exists(path)) {
             try {
                 Files.createDirectories(path);
@@ -308,4 +364,5 @@ public class MainWindow extends JFrame implements ListFileReciever {
         }
         return path.toString();
     }
+
 }

@@ -23,6 +23,7 @@ public class LoginDialog extends JDialog {
     private AuthMessage authMessage;
 
     private boolean connected;
+    private String userName;
 
     public LoginDialog(Frame parent, NettyNetwork nettyNetwork) {
         super(parent, "Аутентификация пользователя", true);
@@ -71,6 +72,7 @@ public class LoginDialog extends JDialog {
                     authMessage = new AuthMessage(tfUsername.getText(), String.valueOf(pfPassword.getPassword()));
                     nettyNetwork.authorize(authMessage);
                     connected = true;
+                    userName = tfUsername.getText();
                 } catch (IOException ex) {
                     JOptionPane.showMessageDialog(LoginDialog.this,
                             "Ошибка сети",
@@ -122,5 +124,9 @@ public class LoginDialog extends JDialog {
 
     public boolean isConnected() {
         return connected;
+    }
+
+    public String getUserName() {
+        return userName;
     }
 }
