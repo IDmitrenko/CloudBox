@@ -9,6 +9,10 @@ public class FileMessage extends AbstractMessage {
     private byte[] data;
     private String userName;
 
+    public FileMessage(String s, byte[] bytes, int partsCount, int i) {
+
+    }
+
 //    private int partsCount;
 //    private int partNumber;
 
@@ -33,6 +37,12 @@ public class FileMessage extends AbstractMessage {
         return partNumber;
     }
 */
+
+    public FileMessage(Path path, byte[] data) throws IOException {
+        this.filename = path.getFileName().toString();
+        this.data = data;
+    }
+
     public FileMessage(Path path) throws IOException {
         this.filename = path.getFileName().toString();
         this.data = Files.readAllBytes(path);
@@ -42,14 +52,5 @@ public class FileMessage extends AbstractMessage {
         this.filename = path.getFileName().toString();
         this.data = Files.readAllBytes(path);
         this.userName = userName;
-    }
-
-    public FileMessage(String filename, byte[] data, int partsCount, int partNumber) throws IOException {
-        this.filename = filename;
-        this.data = data;
-/*
-        this.partsCount = partsCount;
-        this.partNumber = partNumber;
-*/
     }
 }

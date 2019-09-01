@@ -1,12 +1,12 @@
 package com.cloud.server;
 
 import com.cloud.common.transfer.AuthMessage;
+import com.cloud.common.transfer.BigFileMessage;
 import com.cloud.common.transfer.CommandMessage;
 import com.cloud.common.transfer.FileMessage;
 import com.cloud.common.utils.FileAbout;
 import com.cloud.common.utils.FilePartitionWorker;
 import com.cloud.server.protocol.LoginMap;
-import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
@@ -14,9 +14,11 @@ import io.netty.util.ReferenceCountUtil;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import javax.swing.*;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.RandomAccessFile;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -26,6 +28,7 @@ public class MainHandler extends ChannelInboundHandlerAdapter {
     private static final String rootPath = "server/repository/";
     private String clientName;
     private boolean authorized;
+    private boolean isProgressBar;
 
     public MainHandler(String clientName) {
         this.clientName = clientName;
@@ -39,25 +42,23 @@ public class MainHandler extends ChannelInboundHandlerAdapter {
         try {
             if (msg != null) {
 
-                if (msg instanceof FileAbout)
-                {
+                if (msg instanceof FileAbout) {
                     readFileAbout(ctx, (FileAbout) msg);
                 }
 
-                if (msg instanceof FileMessage)
-                {
+                if (msg instanceof BigFileMessage) {
+                    writeBigFileMessage(ctx, (BigFileMessage) msg);
+                } else if (msg instanceof FileMessage) {
                     writeFileMessage(ctx, (FileMessage) msg);
                 }
 
                 if (!authorized) {
-                    if (msg instanceof AuthMessage)
-                    {
+                    if (msg instanceof AuthMessage) {
                         authentication(ctx, (AuthMessage) msg);
                     }
                 }
 
-                if (msg instanceof CommandMessage)
-                {
+                if (msg instanceof CommandMessage) {
                     readCommandMessage(ctx, (CommandMessage) msg);
                 } else {
                     ctx.fireChannelRead(msg);
@@ -69,38 +70,27 @@ public class MainHandler extends ChannelInboundHandlerAdapter {
         }
     }
 
+    private void writeBigFileMessage(ChannelHandlerContext ctx, BigFileMessage msg) throws IOException {
+        File file = new File(rootPath + clientName + "/" + msg.getFilename());
+        RandomAccessFile ra = new RandomAccessFile(file, "rw");
+        if (msg.getPartNumber() == 0) {
+            ra.seek(0);
+        } else {
+            ra.seek(file.length());
+        }
+        ra.write(msg.getData());
+        ra.close();
+        ServerUtilities.sendFileList(ctx.channel(), clientName);
+    }
+
     private void writeFileMessage(ChannelHandlerContext ctx, FileMessage msg) throws IOException {
         // получаем файл от клиента
         FileMessage fm = msg;
         FileOutputStream fos = new FileOutputStream(rootPath + clientName + "/" + fm.getFilename());
         fos.write(fm.getData());
+        fos.flush();
         fos.close();
         ServerUtilities.sendFileList(ctx.channel(), clientName);
-
-/*
-        // Write the content. https://docs.jboss.org/netty/3.2/xref/org/jboss/netty/example/http/file/package-summary.html
-        ChannelFuture writeFuture;
-//        ch = ctx.channel().;
-        if (ch.getPipeline().get(SslHandler.class) != null) {
-            // Cannot use zero-copy with HTTPS.
-            writeFuture = ch.write(new ChunkedFile(raf, 0, fileLength, 8192));
-         } else {
-             // No encryption - use zero-copy.
-             final FileRegion region =
-                 new DefaultFileRegion(raf.getChannel(), 0, fileLength);
-             writeFuture = ch.write(region);
-             writeFuture.addListener(new ChannelFutureProgressListener() {
-                 public void operationComplete(ChannelFuture future) {
-                     region.releaseExternalResources();
-                 }
-
-                 public void operationProgressed(
-                         ChannelFuture future, long amount, long current, long total) {
-                     System.out.printf("%s: %d / %d (+%d)%n", path, current, total, amount);
-                 }
-             });
-         }
-*/
     }
 
     private void authentication(ChannelHandlerContext ctx, AuthMessage msg) throws InterruptedException {
@@ -111,12 +101,12 @@ public class MainHandler extends ChannelInboundHandlerAdapter {
         if (nick != null && password.equals(nick)) {
             authorized = true;
             CommandMessage amAuthOk = new CommandMessage(CommandMessage.CMD_MSG_AUTH_OK);
-            ChannelFuture future = ctx.writeAndFlush(amAuthOk).await();
+            ctx.writeAndFlush(amAuthOk).await();
             this.clientName = login;
             ServerUtilities.sendFileList(ctx.channel(), login);
         } else {
             CommandMessage amAuthNot = new CommandMessage(CommandMessage.CMD_MSG_AUTH_NOT);
-            ChannelFuture future = ctx.writeAndFlush(amAuthNot).await();
+            ctx.writeAndFlush(amAuthNot).await();
 //                        ReferenceCountUtil.release(msg);
         }
     }

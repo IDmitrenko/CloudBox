@@ -1,6 +1,7 @@
 package com.cloud.client;
 
 import com.cloud.client.protocol.NettyNetwork;
+import com.cloud.common.transfer.BigFileMessage;
 import com.cloud.common.transfer.FileListMessage;
 import com.cloud.common.transfer.FileMessage;
 import com.cloud.common.utils.FileAbout;
@@ -13,6 +14,7 @@ import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.IOException;
+import java.io.RandomAccessFile;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -22,20 +24,17 @@ import java.util.concurrent.Executors;
 
 public class MainWindow extends JFrame implements ListFileReciever {
 
-//    private final JList<FileList> fileListClient;
-//    private final DefaultListModel<FileList> fileListModelClient;
-//    private final FileListCellRender fileListCellRenderClient;
-//    private final JScrollPane scrollClient;
-    // Данные для таблиц
-//    private Object[][] array = new String[][] {{"GuiHelper.java", "2464 bytes"},
-//                                               {"SimpleTableTest", "3486 bytes"}};
-    private Object[][] arrServer = new String[][] {{"    ", "    "}};
+    private Object[][] arrServer = new String[][]{{"    ", "    "}};
     private Object[][] arrClient;
     private int rows, cols;
     private static final String rootPath = "client/repository";
-    
+    private static final int largeFileSize = 1024 * 1024 * 100;
+    private static final int partSize = 1024 * 1024 * 50;
+
+    private final JFrame MainFrame = this;
+
     // Заголовки столбцов
-    private Object[] columnsHeader = new String[] {"Имя файла", "Размер"};
+    private Object[] columnsHeader = new String[]{"Имя файла", "Размер"};
     private final JTable tableClient;
     private final JTable tableServer;
     // Модель данных таблицы
@@ -51,10 +50,8 @@ public class MainWindow extends JFrame implements ListFileReciever {
 
     private final JPanel sendCommandPanel;
 
-//    private final JList<FileList> fileListServer;
-//    private final DefaultListModel<FileList> fileListModelServer;
-//    private final FileListCellRender fileListCellRenderServer;
-//    private final JScrollPane scrollServer;
+    private final JProgressBar progressBar = new JProgressBar();
+
     private final JButton downloadButtonServer;
     private final JButton removeButtonServer;
     private final JButton updateButtonServer;
@@ -76,29 +73,11 @@ public class MainWindow extends JFrame implements ListFileReciever {
 
         setLayout(new BorderLayout());
 
-//        fileListClient = new JList<>();
-//        fileListModelClient = new DefaultListModel<>();
-//        fileListCellRenderClient = new FileListCellRender();
-//        fileListClient.setModel(fileListModelClient);
-//        fileListClient.setCellRenderer(fileListCellRenderClient);
-
-//        scrollClient = new JScrollPane(fileListClient,
-//                JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,
-//                JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
-//        add(scrollClient, BorderLayout.WEST);
-//        scrollClient.setPreferredSize(new Dimension(390, 720));
-
         clientListFile();
 
         tableModelClient = new DefaultTableModel(arrClient.length, columnsHeader.length);
         tableModelClient.setDataVector(arrClient, columnsHeader);
-/*
-        for (int i = 0; i < arrServer.length; i++) {
-            tableModelClient.addRow(arrClient[i]);
-        }
-*/
 
-//        tableClient = new JTable(arrClient, columnsHeader);
         tableClient = new JTable(tableModelClient);
 
         tableClient.setAutoCreateRowSorter(true);
@@ -131,22 +110,6 @@ public class MainWindow extends JFrame implements ListFileReciever {
         // Создание таблицы на основании модели данных
         tableModelServer = new DefaultTableModel(arrServer.length, columnsHeader.length);
         tableModelServer.setDataVector(arrServer, columnsHeader);
-/*
-        for (int i = 0; i < arrServer.length; i++) {
-            tableModelServer.addRow(arrServer[i]);
-        }
-*/
-        //        fileListServer = new JList<>();
-//        fileListModelServer = new DefaultListModel<>();
-//        fileListCellRenderServer = new FileListCellRender();
-//        fileListServer.setModel(fileListModelServer);
-//        fileListServer.setCellRenderer(fileListCellRenderServer);
-
-//        scrollServer = new JScrollPane(fileListServer,
-//                JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,
-//                JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
-//        add(scrollServer, BorderLayout.EAST);
-//        scrollServer.setPreferredSize(new Dimension(390, 720));
 
         tableServer = new JTable(tableModelServer);
 //        tableServer = new JTable(arrServer, columnsHeader);
@@ -184,8 +147,13 @@ public class MainWindow extends JFrame implements ListFileReciever {
                 Path path = Paths.get(rootPath + "/" + nameFile);
                 if (nameFile != null && !nameFile.trim().isEmpty() && Files.exists(path)) {
                     try {
-                        FileMessage fm = new FileMessage(path, userName);
-                        network.sendMsg(fm);
+                        if (bigFile(path)) {
+                            BigFileProgressBar bfpb = new BigFileProgressBar(MainFrame);
+                            bfpb.setProgressBar(0);
+                            sendBigFile(path, bfpb);
+                        } else {
+                            sendSmallFile(path);
+                        }
                     } catch (IOException ex) {
                         ex.printStackTrace();
                     }
@@ -301,6 +269,43 @@ public class MainWindow extends JFrame implements ListFileReciever {
 
     }
 
+    private boolean bigFile(Path path) {
+        return path.toFile().length() > largeFileSize;
+    }
+
+    private void sendBigFile(Path path, BigFileProgressBar bfpb) throws IOException {
+        long fileSize = path.toFile().length();
+        //send by 100mb
+        int bytesIn1mb = partSize;
+        int currentPosition = 0;
+        int partNumber = 0;
+        int partsCount = (int) (fileSize / (bytesIn1mb));
+        int setValue;
+        RandomAccessFile ra = new RandomAccessFile(path.toString(), "r");
+        while (currentPosition < fileSize) {
+            byte[] data = new byte[Math.min(bytesIn1mb, (int) (fileSize - currentPosition))];
+            ra.seek(currentPosition);
+            int readBytes = ra.read(data);
+            BigFileMessage filePart = new BigFileMessage(path, partNumber, partsCount, data);
+            network.sendMsg(filePart);
+            partNumber++;
+            currentPosition += readBytes;
+            setValue = (100 * partNumber) / partsCount;
+            if (setValue > bfpb.getPreviousValue()) {
+                bfpb.setProgressBar(setValue);
+                bfpb.setPreviousValue(setValue);
+            }
+            if (partNumber == partsCount) {
+                bfpb.close();
+            }
+        }
+    }
+
+    private void sendSmallFile(Path path) throws IOException {
+        FileMessage fm = new FileMessage(path, userName);
+        network.sendMsg(fm);
+    }
+
     private void clientListFile() throws IOException {
         fll = new FileListMessage(Paths.get(getClientRootPath()));
         List<FileAbout> filesList = fll.getFilesList();
@@ -352,7 +357,7 @@ public class MainWindow extends JFrame implements ListFileReciever {
         }
         return fll;
     }
-    
+
     private static String getClientRootPath() {
         Path path = Paths.get(rootPath);
         if (!Files.exists(path)) {
