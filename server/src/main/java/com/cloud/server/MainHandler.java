@@ -7,14 +7,12 @@ import com.cloud.common.transfer.FileMessage;
 import com.cloud.common.utils.FileAbout;
 import com.cloud.common.utils.FilePartitionWorker;
 import com.cloud.server.protocol.LoginMap;
-import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.util.ReferenceCountUtil;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import javax.swing.*;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -28,11 +26,6 @@ public class MainHandler extends ChannelInboundHandlerAdapter {
     private static final String rootPath = "server/repository/";
     private String clientName;
     private boolean authorized;
-    private boolean isProgressBar;
-
-    public MainHandler(String clientName) {
-        this.clientName = clientName;
-    }
 
     public MainHandler() {
     }
@@ -71,20 +64,29 @@ public class MainHandler extends ChannelInboundHandlerAdapter {
     }
 
     private void writeBigFileMessage(ChannelHandlerContext ctx, BigFileMessage msg) throws IOException {
+        if (msg.getPartNumber() == 0) {
+            deleteFile(msg.getFilename());
+        }
         File file = new File(rootPath + clientName + "/" + msg.getFilename());
         RandomAccessFile ra = new RandomAccessFile(file, "rw");
-        if (msg.getPartNumber() == 0) {
-            ra.seek(0);
-        } else {
-            ra.seek(file.length());
-        }
+        ra.seek(file.length());
         ra.write(msg.getData());
         ra.close();
         ServerUtilities.sendFileList(ctx.channel(), clientName);
     }
 
+    private void deleteFile(String nameFile) {
+        Path path = Paths.get(rootPath + clientName + "/" + nameFile);
+        if (nameFile != null && !nameFile.trim().isEmpty() && Files.exists(path)) {
+            try {
+                Files.delete(path);
+            } catch (IOException ex) {
+                ex.printStackTrace();
+            }
+        }
+    }
+
     private void writeFileMessage(ChannelHandlerContext ctx, FileMessage msg) throws IOException {
-        // получаем файл от клиента
         FileMessage fm = msg;
         FileOutputStream fos = new FileOutputStream(rootPath + clientName + "/" + fm.getFilename());
         fos.write(fm.getData());
@@ -107,7 +109,7 @@ public class MainHandler extends ChannelInboundHandlerAdapter {
         } else {
             CommandMessage amAuthNot = new CommandMessage(CommandMessage.CMD_MSG_AUTH_NOT);
             ctx.writeAndFlush(amAuthNot).await();
-//                        ReferenceCountUtil.release(msg);
+            ReferenceCountUtil.release(msg);
         }
     }
 
@@ -136,8 +138,8 @@ public class MainHandler extends ChannelInboundHandlerAdapter {
     private void readFileAbout(ChannelHandlerContext ctx, FileAbout msg) throws IOException {
         // получаем сообщение (объект) имя файла
         FileAbout fa = msg;
-        if (Files.exists(Paths.get(rootPath + fa.getName()))) {
-            FileMessage fm = new FileMessage(Paths.get(rootPath + fa.getName()));
+        if (Files.exists(Paths.get(rootPath + clientName + "/" + fa.getName()))) {
+            FileMessage fm = new FileMessage(Paths.get(rootPath + clientName + "/" + fa.getName()));
             // отправляем запрошенный файл с сервера (ответ)
             ctx.writeAndFlush(fa);
         }

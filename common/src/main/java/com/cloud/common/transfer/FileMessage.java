@@ -13,9 +13,6 @@ public class FileMessage extends AbstractMessage {
 
     }
 
-//    private int partsCount;
-//    private int partNumber;
-
     public String getFilename() {
         return filename;
     }
@@ -28,18 +25,9 @@ public class FileMessage extends AbstractMessage {
         return userName;
     }
 
-    /*
-    public int getPartsCount() {
-        return partsCount;
-    }
-
-    public int getPartNumber() {
-        return partNumber;
-    }
-*/
-
-    public FileMessage(Path path, byte[] data) throws IOException {
+    public FileMessage(Path path, String userName, byte[] data) throws IOException {
         this.filename = path.getFileName().toString();
+        this.userName = userName;
         this.data = data;
     }
 

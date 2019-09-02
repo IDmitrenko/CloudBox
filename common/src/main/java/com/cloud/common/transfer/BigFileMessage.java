@@ -7,8 +7,8 @@ public class BigFileMessage extends FileMessage {
     private int partsCount;
     private int partNumber;
 
-    public BigFileMessage(Path path, int partNumber, int partsCount, byte[] data) throws IOException {
-        super(path, data);
+    public BigFileMessage(Path path, String userName, int partNumber, int partsCount, byte[] data) throws IOException {
+        super(path, userName, data);
         this.partsCount = partsCount;
         this.partNumber = partNumber;
     }

@@ -6,10 +6,6 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.util.ReferenceCountUtil;
 
-import java.io.File;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-
 public class ClientHandler extends ChannelInboundHandlerAdapter {
 
     private NettyNetwork nettyNetwork;
@@ -33,8 +29,9 @@ public class ClientHandler extends ChannelInboundHandlerAdapter {
                 } else if (cm.getType() == CommandMessage.CMD_MSG_AUTH_NOT) {
                     nettyNetwork.waitAuthorize(false);
                 }
-                // Загрузить файл с сервера
+                // TODO Загрузить файл с сервера
                 if (cm.getType() == CommandMessage.CMD_MSG_REQUEST_FILE_DOWNLOAD) {
+
                 }
             }
 

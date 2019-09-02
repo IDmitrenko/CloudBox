@@ -7,9 +7,7 @@ import com.cloud.common.transfer.FileMessage;
 import com.cloud.common.utils.FileAbout;
 
 import javax.swing.*;
-import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
-import javax.swing.table.TableColumnModel;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -29,9 +27,8 @@ public class MainWindow extends JFrame implements ListFileReciever {
     private int rows, cols;
     private static final String rootPath = "client/repository";
     private static final int largeFileSize = 1024 * 1024 * 100;
-    private static final int partSize = 1024 * 1024 * 50;
 
-    private final JFrame MainFrame = this;
+    private final JFrame mainFrame = this;
 
     // Заголовки столбцов
     private Object[] columnsHeader = new String[]{"Имя файла", "Размер"};
@@ -40,17 +37,12 @@ public class MainWindow extends JFrame implements ListFileReciever {
     // Модель данных таблицы
     private DefaultTableModel tableModelServer;
     private DefaultTableModel tableModelClient;
-    // Модель столбцов таблицы
-    private TableColumnModel columnModelClient;
-    private TableColumnModel columnModelServer;
 
     private final JButton sendButtonClient;
     private final JButton removeButtonClient;
     private final JButton updateButtonClient;
 
     private final JPanel sendCommandPanel;
-
-    private final JProgressBar progressBar = new JProgressBar();
 
     private final JButton downloadButtonServer;
     private final JButton removeButtonServer;
@@ -75,17 +67,21 @@ public class MainWindow extends JFrame implements ListFileReciever {
 
         clientListFile();
 
-        tableModelClient = new DefaultTableModel(arrClient.length, columnsHeader.length);
+        tableModelClient = new DefaultTableModel(arrClient.length, columnsHeader.length) {
+            @Override
+            public Class getColumnClass(int columnIndex) {
+                if (columnIndex == 1) {
+                    return Integer.class;
+                } else {
+                    return String.class;
+                }
+            }
+        };
         tableModelClient.setDataVector(arrClient, columnsHeader);
 
         tableClient = new JTable(tableModelClient);
 
         tableClient.setAutoCreateRowSorter(true);
-        // Получаем стандартную модель
-        columnModelClient = tableClient.getColumnModel();
-        DefaultTableCellRenderer rightRendererClient = new DefaultTableCellRenderer();
-        rightRendererClient.setHorizontalAlignment(JLabel.RIGHT);
-        columnModelClient.getColumn(1).setCellRenderer(rightRendererClient);
 
         tableClient.setPreferredSize(new Dimension(390, 668));
         add(tableClient, BorderLayout.WEST);
@@ -108,25 +104,21 @@ public class MainWindow extends JFrame implements ListFileReciever {
         add(titleBox, BorderLayout.NORTH);
 
         // Создание таблицы на основании модели данных
-        tableModelServer = new DefaultTableModel(arrServer.length, columnsHeader.length);
+        tableModelServer = new DefaultTableModel(arrServer.length, columnsHeader.length) {
+            @Override
+            public Class getColumnClass(int columnIndex) {
+                if (columnIndex == 1) {
+                    return Integer.class;
+                } else {
+                    return String.class;
+                }
+            }
+        };
         tableModelServer.setDataVector(arrServer, columnsHeader);
 
         tableServer = new JTable(tableModelServer);
-//        tableServer = new JTable(arrServer, columnsHeader);
         tableServer.setAutoCreateRowSorter(true);
-        columnModelServer = tableServer.getColumnModel();
-        DefaultTableCellRenderer rightRendererServer = new DefaultTableCellRenderer();
-        rightRendererServer.setHorizontalAlignment(JLabel.RIGHT);
-        columnModelServer.getColumn(1).setCellRenderer(rightRendererServer);
-/*
-        // Определение минимального и максимального размеров столбцов
-        Enumeration<TableColumn> e = columnModel.getColumns();
-        while ( e.hasMoreElements() ) {
-            TableColumn column = (TableColumn)e.nextElement();
-            column.setMinWidth(50);
-            column.setMaxWidth(200);
-        }
-*/
+
         tableServer.setPreferredSize(new Dimension(390, 668));
         add(tableServer, BorderLayout.EAST);
 
@@ -148,9 +140,7 @@ public class MainWindow extends JFrame implements ListFileReciever {
                 if (nameFile != null && !nameFile.trim().isEmpty() && Files.exists(path)) {
                     try {
                         if (bigFile(path)) {
-                            BigFileProgressBar bfpb = new BigFileProgressBar(MainFrame);
-                            bfpb.setProgressBar(0);
-                            sendBigFile(path, bfpb);
+                            sendBigFile(path);
                         } else {
                             sendSmallFile(path);
                         }
@@ -273,26 +263,32 @@ public class MainWindow extends JFrame implements ListFileReciever {
         return path.toFile().length() > largeFileSize;
     }
 
-    private void sendBigFile(Path path, BigFileProgressBar bfpb) throws IOException {
+    private void sendBigFile(Path path) throws IOException {
+        final BigFileProgressBar bfpb = new BigFileProgressBar(mainFrame);
         long fileSize = path.toFile().length();
         //send by 100mb
-        int bytesIn1mb = partSize;
+        int bytesIn1mb = largeFileSize;
         int currentPosition = 0;
         int partNumber = 0;
         int partsCount = (int) (fileSize / (bytesIn1mb));
-        int setValue;
         RandomAccessFile ra = new RandomAccessFile(path.toString(), "r");
         while (currentPosition < fileSize) {
             byte[] data = new byte[Math.min(bytesIn1mb, (int) (fileSize - currentPosition))];
             ra.seek(currentPosition);
             int readBytes = ra.read(data);
-            BigFileMessage filePart = new BigFileMessage(path, partNumber, partsCount, data);
+            BigFileMessage filePart = new BigFileMessage(path, userName, partNumber, partsCount, data);
             network.sendMsg(filePart);
             partNumber++;
             currentPosition += readBytes;
-            setValue = (100 * partNumber) / partsCount;
+            final int setValue = (100 * partNumber) / partsCount;
             if (setValue > bfpb.getPreviousValue()) {
-                bfpb.setProgressBar(setValue);
+//                bfpb.setProgressBar(setValue);
+                SwingUtilities.invokeLater(new Runnable() {
+                    @Override
+                    public void run() {
+                        bfpb.setProgressBar(setValue);
+                    }
+                });
                 bfpb.setPreviousValue(setValue);
             }
             if (partNumber == partsCount) {
@@ -338,7 +334,6 @@ public class MainWindow extends JFrame implements ListFileReciever {
 
     @Override
     public void updateFileListServer(Object[][] fls) {
-        // возвратился двумерный массив (первый параметр JTable)
         SwingUtilities.invokeLater(new Runnable() {
             @Override
             public void run() {

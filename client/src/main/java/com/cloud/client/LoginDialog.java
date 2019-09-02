@@ -12,7 +12,6 @@ import java.io.IOException;
 
 public class LoginDialog extends JDialog {
 
-    private Network network;
     private NettyNetwork nettyNetwork;
     private JTextField tfUsername;
     private JPasswordField pfPassword;
@@ -106,13 +105,8 @@ public class LoginDialog extends JDialog {
             }
         });
 
-        getContentPane().
-
-                add(panel, BorderLayout.CENTER);
-
-        getContentPane().
-
-                add(bp, BorderLayout.PAGE_END);
+        getContentPane().add(panel, BorderLayout.CENTER);
+        getContentPane().add(bp, BorderLayout.PAGE_END);
 
         pack();
 

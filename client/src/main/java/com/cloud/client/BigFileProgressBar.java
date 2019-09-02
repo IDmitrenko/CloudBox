@@ -6,8 +6,8 @@ import java.awt.*;
 public class BigFileProgressBar extends JFrame {
 
     static private int BOR = 10;
-    private JProgressBar progressBar;
-    final JFrame frame;
+    private final JProgressBar progressBar;
+    private final JFrame frame;
     private int previousValue = 0;
 
     public BigFileProgressBar(Frame parent) {
@@ -34,13 +34,14 @@ public class BigFileProgressBar extends JFrame {
         frame.getContentPane().add(panel, BorderLayout.CENTER);
 
         frame.setPreferredSize(new Dimension(600, 200));
+        frame.setContentPane(progressBar);
         frame.pack();
         frame.setLocationRelativeTo(parent);
         frame.setVisible(true);
     }
 
     public void setProgressBar(int newValue) {
-        this.progressBar.setValue(newValue);
+        progressBar.setValue(newValue);
         progressBar.updateUI();
     }
 
