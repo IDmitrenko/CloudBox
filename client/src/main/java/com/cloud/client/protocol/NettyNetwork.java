@@ -5,15 +5,10 @@ import com.cloud.client.ListFileReciever;
 import com.cloud.common.transfer.AbstractMessage;
 import com.cloud.common.transfer.AuthMessage;
 import com.cloud.common.transfer.FileListMessage;
+import com.cloud.common.transfer.FileMessage;
 import com.cloud.common.utils.FileAbout;
 import io.netty.bootstrap.Bootstrap;
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufAllocator;
-import io.netty.buffer.PooledByteBufAllocator;
-import io.netty.channel.Channel;
-import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelInitializer;
-import io.netty.channel.EventLoopGroup;
+import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
@@ -21,6 +16,7 @@ import io.netty.handler.codec.serialization.ClassResolvers;
 import io.netty.handler.codec.serialization.ObjectDecoder;
 import io.netty.handler.codec.serialization.ObjectEncoder;
 
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.List;
@@ -134,6 +130,15 @@ public class NettyNetwork {
             }
         }
         listFileReciever.updateFileListServer(arrServer);
+    }
+
+    public void writeFileMessage(ChannelHandlerContext ctx, FileMessage msg) throws IOException {
+        FileMessage fm = msg;
+        FileOutputStream fos = new FileOutputStream(listFileReciever.getRootpath() + "/" + fm.getFilename());
+        fos.write(fm.getData());
+        fos.flush();
+        fos.close();
+// обновить файлы на клиенте
     }
 
     public boolean isConnectionOpened() {

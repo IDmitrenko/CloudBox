@@ -2,6 +2,7 @@ package com.cloud.client;
 
 import com.cloud.client.protocol.NettyNetwork;
 import com.cloud.common.transfer.BigFileMessage;
+import com.cloud.common.transfer.CommandMessage;
 import com.cloud.common.transfer.FileListMessage;
 import com.cloud.common.transfer.FileMessage;
 import com.cloud.common.utils.FileAbout;
@@ -11,6 +12,7 @@ import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.file.Files;
@@ -22,10 +24,11 @@ import java.util.concurrent.Executors;
 
 public class MainWindow extends JFrame implements ListFileReciever {
 
-    private Object[][] arrServer = new String[][]{{"    ", "    "}};
+    public Object[][] arrServer = new String[][]{{"    ", "    "}};
     private Object[][] arrClient;
     private int rows, cols;
     private static final String rootPath = "client/repository";
+
     private static final int largeFileSize = 1024 * 1024 * 100;
 
     private final JFrame mainFrame = this;
@@ -133,14 +136,22 @@ public class MainWindow extends JFrame implements ListFileReciever {
         sendButtonClient.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                // Номер выделенной строки
                 int idx = tableClient.getSelectedRow();
                 String nameFile = arrClient[tableClient.getSelectedRow()][0].toString();
                 Path path = Paths.get(rootPath + "/" + nameFile);
                 if (nameFile != null && !nameFile.trim().isEmpty() && Files.exists(path)) {
                     try {
                         if (bigFile(path)) {
-                            sendBigFile(path);
+                            SwingUtilities.invokeLater(new Runnable() {
+                                @Override
+                                public void run() {
+                                    try {
+                                        sendBigFile(path);
+                                    } catch (IOException ex) {
+                                        ex.printStackTrace();
+                                    }
+                                }
+                            });
                         } else {
                             sendSmallFile(path);
                         }
@@ -160,7 +171,6 @@ public class MainWindow extends JFrame implements ListFileReciever {
         removeButtonClient.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                // Номер выделенной строки
                 int idx = tableClient.getSelectedRow();
                 String nameFile = arrClient[tableClient.getSelectedRow()][0].toString();
                 Path path = Paths.get(rootPath + "/" + nameFile);
@@ -170,7 +180,6 @@ public class MainWindow extends JFrame implements ListFileReciever {
                     } catch (IOException ex) {
                         ex.printStackTrace();
                     }
-                    // удаление выделенной строки
                     tableModelClient.removeRow(idx);
                 }
             }
@@ -189,16 +198,15 @@ public class MainWindow extends JFrame implements ListFileReciever {
             }
         });
 
-//        setContentPane(contents);
         getContentPane().add(contents);
 
         downloadButtonServer = new JButton("Скачать файл"); // с сервера
         downloadButtonServer.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                // Номер выделенной строки
                 int idx = tableServer.getSelectedRow();
-
+                String nameFile = arrServer[tableServer.getSelectedRow()][0].toString();
+                downloadFileFromServer(nameFile);
             }
         });
 
@@ -206,12 +214,9 @@ public class MainWindow extends JFrame implements ListFileReciever {
         removeButtonServer.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                // Номер выделенной строки
                 int idx = tableServer.getSelectedRow();
-
-                // удаление выделенной строки
-                tableModelServer.removeRow(idx);
-
+                String nameFile = arrServer[tableServer.getSelectedRow()][0].toString();
+                serverDeleteFile(nameFile);
             }
         });
 
@@ -219,7 +224,7 @@ public class MainWindow extends JFrame implements ListFileReciever {
         updateButtonServer.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-
+                serverListFile();
             }
         });
 
@@ -282,13 +287,15 @@ public class MainWindow extends JFrame implements ListFileReciever {
             currentPosition += readBytes;
             final int setValue = (100 * partNumber) / partsCount;
             if (setValue > bfpb.getPreviousValue()) {
-//                bfpb.setProgressBar(setValue);
+                bfpb.setProgressBar(setValue);
+/*
                 SwingUtilities.invokeLater(new Runnable() {
                     @Override
                     public void run() {
                         bfpb.setProgressBar(setValue);
                     }
                 });
+*/
                 bfpb.setPreviousValue(setValue);
             }
             if (partNumber == partsCount) {
@@ -321,6 +328,25 @@ public class MainWindow extends JFrame implements ListFileReciever {
         }
     }
 
+    private void serverListFile() {
+        CommandMessage slf = new CommandMessage(CommandMessage.CMD_MSG_REQUEST_FILES_LIST);
+        network.sendMsg(slf);
+    }
+
+    private void serverDeleteFile(String nameFile) {
+        File file = new File(nameFile);
+        FileAbout fa = new FileAbout(file);
+        CommandMessage sdf = new CommandMessage(CommandMessage.CMD_MSG_REQUEST_SERVER_DELETE_FILE, fa);
+        network.sendMsg(sdf);
+    }
+
+    private void downloadFileFromServer(String nameFile) {
+        File file = new File(nameFile);
+        FileAbout fa = new FileAbout(file);
+        CommandMessage dffs = new CommandMessage(CommandMessage.CMD_MSG_REQUEST_FILE_DOWNLOAD, fa);
+        network.sendMsg(dffs);
+    }
+
     @Override
     public void updateFileListLocal(Object[][] fll) {
         SwingUtilities.invokeLater(new Runnable() {
@@ -334,6 +360,7 @@ public class MainWindow extends JFrame implements ListFileReciever {
 
     @Override
     public void updateFileListServer(Object[][] fls) {
+        arrServer = fls;
         SwingUtilities.invokeLater(new Runnable() {
             @Override
             public void run() {

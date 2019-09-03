@@ -1,10 +1,15 @@
 package com.cloud.client.protocol;
 
+import com.cloud.common.transfer.BigFileMessage;
 import com.cloud.common.transfer.CommandMessage;
 import com.cloud.common.transfer.FileListMessage;
+import com.cloud.common.transfer.FileMessage;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.util.ReferenceCountUtil;
+
+import java.io.FileOutputStream;
+import java.io.IOException;
 
 public class ClientHandler extends ChannelInboundHandlerAdapter {
 
@@ -29,10 +34,12 @@ public class ClientHandler extends ChannelInboundHandlerAdapter {
                 } else if (cm.getType() == CommandMessage.CMD_MSG_AUTH_NOT) {
                     nettyNetwork.waitAuthorize(false);
                 }
-                // TODO Загрузить файл с сервера
-                if (cm.getType() == CommandMessage.CMD_MSG_REQUEST_FILE_DOWNLOAD) {
+            }
 
-                }
+            if (msg instanceof BigFileMessage) {
+                writeBigFileMessage(ctx, (BigFileMessage) msg);
+            } else if (msg instanceof FileMessage) {
+                nettyNetwork.writeFileMessage(ctx, (FileMessage) msg);
             }
 
             if (msg instanceof FileListMessage) {
@@ -41,6 +48,8 @@ public class ClientHandler extends ChannelInboundHandlerAdapter {
                 nettyNetwork.updateFileListServer(flm);
             }
 
+        } catch (IOException ex) {
+            ex.printStackTrace();
         } finally {
             ReferenceCountUtil.release(msg);
         }
