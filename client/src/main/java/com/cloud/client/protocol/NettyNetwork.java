@@ -2,8 +2,10 @@ package com.cloud.client.protocol;
 
 import com.cloud.client.AuthException;
 import com.cloud.client.ListFileReciever;
+import com.cloud.client.MainWindow;
 import com.cloud.common.transfer.AbstractMessage;
 import com.cloud.common.transfer.AuthMessage;
+import com.cloud.common.transfer.BigFileMessage;
 import com.cloud.common.transfer.FileListMessage;
 import com.cloud.common.transfer.FileMessage;
 import com.cloud.common.utils.FileAbout;
@@ -134,11 +136,15 @@ public class NettyNetwork {
 
     public void writeFileMessage(ChannelHandlerContext ctx, FileMessage msg) throws IOException {
         FileMessage fm = msg;
-        FileOutputStream fos = new FileOutputStream(listFileReciever.getRootpath() + "/" + fm.getFilename());
+        FileOutputStream fos = new FileOutputStream(MainWindow.rootPath + "/" + fm.getFilename());
         fos.write(fm.getData());
         fos.flush();
         fos.close();
-// обновить файлы на клиенте
+        listFileReciever.clientListFile();
+    }
+
+    public void writeBigFileMessage(ChannelHandlerContext ctx, BigFileMessage msg) {
+
     }
 
     public boolean isConnectionOpened() {

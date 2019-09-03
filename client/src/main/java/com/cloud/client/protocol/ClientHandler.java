@@ -37,14 +37,13 @@ public class ClientHandler extends ChannelInboundHandlerAdapter {
             }
 
             if (msg instanceof BigFileMessage) {
-                writeBigFileMessage(ctx, (BigFileMessage) msg);
+                nettyNetwork.writeBigFileMessage(ctx, (BigFileMessage) msg);
             } else if (msg instanceof FileMessage) {
                 nettyNetwork.writeFileMessage(ctx, (FileMessage) msg);
             }
 
             if (msg instanceof FileListMessage) {
                 FileListMessage flm = (FileListMessage) msg;
-                // пришел список файлов клиента на сервере
                 nettyNetwork.updateFileListServer(flm);
             }
 

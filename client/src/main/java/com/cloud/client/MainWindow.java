@@ -27,7 +27,7 @@ public class MainWindow extends JFrame implements ListFileReciever {
     public Object[][] arrServer = new String[][]{{"    ", "    "}};
     private Object[][] arrClient;
     private int rows, cols;
-    private static final String rootPath = "client/repository";
+    public static final String rootPath = "client/repository";
 
     private static final int largeFileSize = 1024 * 1024 * 100;
 
@@ -59,6 +59,8 @@ public class MainWindow extends JFrame implements ListFileReciever {
     private String userName;
 
     private FileListMessage fll;
+
+    ExecutorService executorService = Executors.newCachedThreadPool();
 
     public MainWindow() throws IOException {
 
@@ -142,14 +144,11 @@ public class MainWindow extends JFrame implements ListFileReciever {
                 if (nameFile != null && !nameFile.trim().isEmpty() && Files.exists(path)) {
                     try {
                         if (bigFile(path)) {
-                            SwingUtilities.invokeLater(new Runnable() {
-                                @Override
-                                public void run() {
-                                    try {
-                                        sendBigFile(path);
-                                    } catch (IOException ex) {
-                                        ex.printStackTrace();
-                                    }
+                            executorService.submit(() -> {
+                                try {
+                                    sendBigFile(path);
+                                } catch (IOException ex) {
+                                    ex.printStackTrace();
                                 }
                             });
                         } else {
@@ -189,12 +188,7 @@ public class MainWindow extends JFrame implements ListFileReciever {
         updateButtonClient.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                try {
-                    clientListFile();
-                } catch (IOException ex) {
-                    ex.printStackTrace();
-                }
-                updateFileListLocal(arrClient);
+                clientListFile();
             }
         });
 
@@ -250,7 +244,6 @@ public class MainWindow extends JFrame implements ListFileReciever {
         this.network = NettyNetwork.getOurInstance();
         network.setListFileReciever(this);
 
-        ExecutorService executorService = Executors.newCachedThreadPool();
         executorService.submit(() -> network.start());
 
         LoginDialog loginDialog = new LoginDialog(this, network);
@@ -287,15 +280,12 @@ public class MainWindow extends JFrame implements ListFileReciever {
             currentPosition += readBytes;
             final int setValue = (100 * partNumber) / partsCount;
             if (setValue > bfpb.getPreviousValue()) {
-                bfpb.setProgressBar(setValue);
-/*
                 SwingUtilities.invokeLater(new Runnable() {
                     @Override
                     public void run() {
                         bfpb.setProgressBar(setValue);
                     }
                 });
-*/
                 bfpb.setPreviousValue(setValue);
             }
             if (partNumber == partsCount) {
@@ -309,8 +299,13 @@ public class MainWindow extends JFrame implements ListFileReciever {
         network.sendMsg(fm);
     }
 
-    private void clientListFile() throws IOException {
-        fll = new FileListMessage(Paths.get(getClientRootPath()));
+    @Override
+    public void clientListFile() {
+        try {
+            fll = new FileListMessage(Paths.get(getClientRootPath()));
+        } catch (IOException ex) {
+            ex.printStackTrace();
+        }
         List<FileAbout> filesList = fll.getFilesList();
         rows = filesList.size();
         cols = 2;
@@ -326,6 +321,7 @@ public class MainWindow extends JFrame implements ListFileReciever {
                 arrClient[i][1] = String.valueOf(filesList.get(i).getSize()) + " bytes";
             }
         }
+        updateFileListLocal(arrClient);
     }
 
     private void serverListFile() {
@@ -380,7 +376,7 @@ public class MainWindow extends JFrame implements ListFileReciever {
         return fll;
     }
 
-    private static String getClientRootPath() {
+    public static String getClientRootPath() {
         Path path = Paths.get(rootPath);
         if (!Files.exists(path)) {
             try {
