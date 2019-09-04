@@ -61,6 +61,7 @@ public class NettyNetwork {
     }
 
     private Channel currentChannel;
+    private BigFileProgressBar bfbp;
 
     private static int cols = 2;
     private int rows;
@@ -165,9 +166,9 @@ public class NettyNetwork {
 
     public void writeBigFileMessage(ChannelHandlerContext ctx, BigFileMessage msg) throws IOException, InterruptedException {
         int partNumber = msg.getPartNumber();
-        final BigFileProgressBar bfbp = new BigFileProgressBar(mainFrame);
         if (partNumber == 0) {
             deleteFile(msg.getFilename());
+            bfbp = new BigFileProgressBar(mainFrame);
             bfbp.setPreviousValue(0);
         }
         File file = new File(rootPath + "/" + msg.getFilename());
