@@ -1,6 +1,7 @@
 package com.cloud.client.protocol;
 
 import com.cloud.client.AuthException;
+import com.cloud.client.BigFileProgressBar;
 import com.cloud.client.ListFileReciever;
 import com.cloud.client.MainWindow;
 import com.cloud.common.transfer.AbstractMessage;
@@ -18,10 +19,15 @@ import io.netty.handler.codec.serialization.ClassResolvers;
 import io.netty.handler.codec.serialization.ObjectDecoder;
 import io.netty.handler.codec.serialization.ObjectEncoder;
 
-import java.io.FileOutputStream;
-import java.io.IOException;
+import javax.swing.*;
+import java.io.*;
 import java.net.InetSocketAddress;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
 
 public class NettyNetwork {
     private volatile boolean isAuth = false;
@@ -32,8 +38,18 @@ public class NettyNetwork {
         this.listFileReciever = listFileReciever;
     }
 
-    public NettyNetwork() {
+    private JFrame mainFrame;
 
+    public void setMainFrame(JFrame mainFrame) {
+        this.mainFrame = mainFrame;
+    }
+
+    private ExecutorService executorService;
+    public void setExecutorService(ExecutorService executorService) {
+        this.executorService = executorService;
+    }
+
+    public NettyNetwork() {
     }
 
     private Object lock = new Object();
@@ -49,7 +65,10 @@ public class NettyNetwork {
     private static int cols = 2;
     private int rows;
     private Object[][] arrServer;
+    private Object[][] arrClient;
     private static final int maxObjectSize = 101 * 1024 * 1024;
+    private static final int largeFileSize = 1024 * 1024 * 100;
+    private static final String rootPath = "client/repository";
 
     public Channel getCurrentChannel() {
         return currentChannel;
@@ -67,7 +86,7 @@ public class NettyNetwork {
                     socketChannel.pipeline().addLast(
                             new ObjectDecoder(maxObjectSize, ClassResolvers.cacheDisabled(null)),
                             new ObjectEncoder(),
-                            new ClientHandler(ourInstance)
+                            new ClientHandler(ourInstance, executorService)
                     );
                     currentChannel = socketChannel;
                 }
@@ -110,7 +129,9 @@ public class NettyNetwork {
      */
     public void sendMsg(final AbstractMessage msg) {
         try {
-            currentChannel.writeAndFlush(msg).await();
+            if (isConnectionOpened()) {
+                currentChannel.writeAndFlush(msg).await();
+            }
         } catch (InterruptedException ex) {
             ex.printStackTrace();
         }
@@ -135,16 +156,137 @@ public class NettyNetwork {
     }
 
     public void writeFileMessage(ChannelHandlerContext ctx, FileMessage msg) throws IOException {
-        FileMessage fm = msg;
-        FileOutputStream fos = new FileOutputStream(MainWindow.rootPath + "/" + fm.getFilename());
-        fos.write(fm.getData());
+        FileOutputStream fos = new FileOutputStream(rootPath + "/" + msg.getFilename());
+        fos.write(msg.getData());
         fos.flush();
         fos.close();
-        listFileReciever.clientListFile();
+        clientListFile();
     }
 
-    public void writeBigFileMessage(ChannelHandlerContext ctx, BigFileMessage msg) {
+    public void writeBigFileMessage(ChannelHandlerContext ctx, BigFileMessage msg) throws IOException, InterruptedException {
+        int partNumber = msg.getPartNumber();
+        final BigFileProgressBar bfbp = new BigFileProgressBar(mainFrame);
+        if (partNumber == 0) {
+            deleteFile(msg.getFilename());
+            bfbp.setPreviousValue(0);
+        }
+        File file = new File(rootPath + "/" + msg.getFilename());
+        RandomAccessFile ra = new RandomAccessFile(file, "rw");
+        ra.seek(file.length());
+        ra.write(msg.getData());
+        ra.close();
+        partNumber++;
+        final int setValue = (100 * partNumber) / msg.getPartsCount();
+        if (setValue > bfbp.getPreviousValue()) {
+            SwingUtilities.invokeLater(new Runnable() {
+                @Override
+                public void run() {
+                    bfbp.setProgressBar(setValue);
+                }
+            });
+            bfbp.setPreviousValue(setValue);
+        }
+        if (msg.getPartsCount() == partNumber) {
+            TimeUnit.SECONDS.sleep(1L);
+            bfbp.close();
+            clientListFile();
+        }
+    }
 
+    public void deleteFile(String nameFile) {
+        Path path = Paths.get(rootPath + "/" + nameFile);
+        if (nameFile != null && !nameFile.trim().isEmpty() && Files.exists(path)) {
+            try {
+                Files.delete(path);
+            } catch (IOException ex) {
+                ex.printStackTrace();
+            }
+        }
+        clientListFile();
+    }
+
+    public boolean bigFile(Path path) {
+        return path.toFile().length() > largeFileSize;
+    }
+
+    public void sendBigFile(Path path) throws IOException, InterruptedException {
+        final BigFileProgressBar bfpb = new BigFileProgressBar(mainFrame);
+        long fileSize = path.toFile().length();
+        int bytesIn1mb = largeFileSize;
+        int currentPosition = 0;
+        int partNumber = 0;
+        bfpb.setPreviousValue(0);
+        int partsCount = (int) (fileSize / (bytesIn1mb));
+        RandomAccessFile ra = new RandomAccessFile(path.toString(), "r");
+        while (currentPosition < fileSize) {
+            byte[] data = new byte[Math.min(bytesIn1mb, (int) (fileSize - currentPosition))];
+            ra.seek(currentPosition);
+            int readBytes = ra.read(data);
+            BigFileMessage filePart = new BigFileMessage(path, MainWindow.getUserName(), partNumber, partsCount, data);
+            sendMsg(filePart);
+            partNumber++;
+            currentPosition += readBytes;
+            final int setValue = (100 * partNumber) / partsCount;
+            if (setValue > bfpb.getPreviousValue()) {
+                SwingUtilities.invokeLater(new Runnable() {
+                    @Override
+                    public void run() {
+                        bfpb.setProgressBar(setValue);
+                    }
+                });
+                bfpb.setPreviousValue(setValue);
+            }
+            if (partNumber == partsCount) {
+                TimeUnit.SECONDS.sleep(1L);
+                bfpb.close();
+            }
+        }
+    }
+
+    public void sendSmallFile(Path path) throws IOException {
+        FileMessage fm = new FileMessage(path, MainWindow.getUserName());
+        sendMsg(fm);
+    }
+
+    public void clientListFile() {
+        FileListMessage fll = getListFileClient();
+        List<FileAbout> filesList = fll.getFilesList();
+        rows = filesList.size();
+        if (rows == 0) {
+            rows = 1;
+            arrClient = new String[rows][cols];
+            arrClient[0][0] = "     ";
+            arrClient[0][1] = "     ";
+        } else {
+            arrClient = new String[rows][cols];
+            for (int i = 0; i < rows; i++) {
+                arrClient[i][0] = filesList.get(i).getName();
+                arrClient[i][1] = String.valueOf(filesList.get(i).getSize()) + " bytes";
+            }
+        }
+        listFileReciever.updateFileListLocal(arrClient);
+    }
+
+    public String getClientRootPath() {
+        Path path = Paths.get(rootPath);
+        if (!Files.exists(path)) {
+            try {
+                Files.createDirectories(path);
+            } catch (IOException ex) {
+                ex.printStackTrace();
+            }
+        }
+        return path.toString();
+    }
+
+    public FileListMessage getListFileClient() {
+        FileListMessage fll = null;
+        try {
+            fll = new FileListMessage(Paths.get(getClientRootPath()));
+        } catch (IOException ex) {
+            ex.printStackTrace();
+        }
+        return fll;
     }
 
     public boolean isConnectionOpened() {

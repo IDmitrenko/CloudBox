@@ -20,7 +20,7 @@ public class ServerUtilities {
     }
 
     private static String getUserRootPath(String username) {
-        Path path = Paths.get("server/repository/" + username);
+        Path path = Paths.get(MainHandler.rootPath + username);
         if (!Files.exists(path)) {
             try {
                 Files.createDirectory(path);

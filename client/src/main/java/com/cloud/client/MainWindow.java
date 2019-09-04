@@ -1,10 +1,7 @@
 package com.cloud.client;
 
 import com.cloud.client.protocol.NettyNetwork;
-import com.cloud.common.transfer.BigFileMessage;
 import com.cloud.common.transfer.CommandMessage;
-import com.cloud.common.transfer.FileListMessage;
-import com.cloud.common.transfer.FileMessage;
 import com.cloud.common.utils.FileAbout;
 
 import javax.swing.*;
@@ -14,30 +11,21 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.File;
 import java.io.IOException;
-import java.io.RandomAccessFile;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class MainWindow extends JFrame implements ListFileReciever {
 
     public Object[][] arrServer = new String[][]{{"    ", "    "}};
-    private Object[][] arrClient;
-    private int rows, cols;
-    public static final String rootPath = "client/repository";
+    public Object[][] arrClient = new String[][]{{"    ", "    "}};
 
-    private static final int largeFileSize = 1024 * 1024 * 100;
-
-    private final JFrame mainFrame = this;
-
-    // Заголовки столбцов
     private Object[] columnsHeader = new String[]{"Имя файла", "Размер"};
     private final JTable tableClient;
     private final JTable tableServer;
-    // Модель данных таблицы
+
     private DefaultTableModel tableModelServer;
     private DefaultTableModel tableModelClient;
 
@@ -56,9 +44,7 @@ public class MainWindow extends JFrame implements ListFileReciever {
     private final JLabel titleServer;
 
     private final NettyNetwork network;
-    private String userName;
-
-    private FileListMessage fll;
+    private static String userName;
 
     ExecutorService executorService = Executors.newCachedThreadPool();
 
@@ -69,8 +55,6 @@ public class MainWindow extends JFrame implements ListFileReciever {
         setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
 
         setLayout(new BorderLayout());
-
-        clientListFile();
 
         tableModelClient = new DefaultTableModel(arrClient.length, columnsHeader.length) {
             @Override
@@ -108,7 +92,6 @@ public class MainWindow extends JFrame implements ListFileReciever {
         titleBox.add(titleServer);
         add(titleBox, BorderLayout.NORTH);
 
-        // Создание таблицы на основании модели данных
         tableModelServer = new DefaultTableModel(arrServer.length, columnsHeader.length) {
             @Override
             public Class getColumnClass(int columnIndex) {
@@ -138,21 +121,20 @@ public class MainWindow extends JFrame implements ListFileReciever {
         sendButtonClient.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                int idx = tableClient.getSelectedRow();
                 String nameFile = arrClient[tableClient.getSelectedRow()][0].toString();
-                Path path = Paths.get(rootPath + "/" + nameFile);
+                Path path = Paths.get(network.getClientRootPath() + "/" + nameFile);
                 if (nameFile != null && !nameFile.trim().isEmpty() && Files.exists(path)) {
                     try {
-                        if (bigFile(path)) {
+                        if (network.bigFile(path)) {
                             executorService.submit(() -> {
                                 try {
-                                    sendBigFile(path);
-                                } catch (IOException ex) {
+                                    network.sendBigFile(path);
+                                } catch (InterruptedException | IOException ex) {
                                     ex.printStackTrace();
                                 }
                             });
                         } else {
-                            sendSmallFile(path);
+                            network.sendSmallFile(path);
                         }
                     } catch (IOException ex) {
                         ex.printStackTrace();
@@ -171,16 +153,8 @@ public class MainWindow extends JFrame implements ListFileReciever {
             @Override
             public void actionPerformed(ActionEvent e) {
                 int idx = tableClient.getSelectedRow();
-                String nameFile = arrClient[tableClient.getSelectedRow()][0].toString();
-                Path path = Paths.get(rootPath + "/" + nameFile);
-                if (nameFile != null && !nameFile.trim().isEmpty() && Files.exists(path)) {
-                    try {
-                        Files.delete(path);
-                    } catch (IOException ex) {
-                        ex.printStackTrace();
-                    }
-                    tableModelClient.removeRow(idx);
-                }
+                String nameFile = arrClient[idx][0].toString();
+                network.deleteFile(nameFile);
             }
         });
 
@@ -188,7 +162,7 @@ public class MainWindow extends JFrame implements ListFileReciever {
         updateButtonClient.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                clientListFile();
+                network.clientListFile();
             }
         });
 
@@ -198,8 +172,12 @@ public class MainWindow extends JFrame implements ListFileReciever {
         downloadButtonServer.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                int idx = tableServer.getSelectedRow();
                 String nameFile = arrServer[tableServer.getSelectedRow()][0].toString();
+/*
+                String str = arrServer[tableServer.getSelectedRow()][1].toString();
+                String[] subStr = str.split(" ");
+                long fileSize = Long.parseLong(subStr[0].trim());
+*/
                 downloadFileFromServer(nameFile);
             }
         });
@@ -208,7 +186,6 @@ public class MainWindow extends JFrame implements ListFileReciever {
         removeButtonServer.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                int idx = tableServer.getSelectedRow();
                 String nameFile = arrServer[tableServer.getSelectedRow()][0].toString();
                 serverDeleteFile(nameFile);
             }
@@ -243,6 +220,9 @@ public class MainWindow extends JFrame implements ListFileReciever {
 
         this.network = NettyNetwork.getOurInstance();
         network.setListFileReciever(this);
+        network.setMainFrame(this);
+        network.setExecutorService(executorService);
+        network.clientListFile();
 
         executorService.submit(() -> network.start());
 
@@ -250,78 +230,12 @@ public class MainWindow extends JFrame implements ListFileReciever {
         loginDialog.setVisible(true);
 
         if (!loginDialog.isConnected()) {
+            network.closeConnection();
             System.exit(0);
         } else {
             userName = loginDialog.getUserName();
         }
 
-    }
-
-    private boolean bigFile(Path path) {
-        return path.toFile().length() > largeFileSize;
-    }
-
-    private void sendBigFile(Path path) throws IOException {
-        final BigFileProgressBar bfpb = new BigFileProgressBar(mainFrame);
-        long fileSize = path.toFile().length();
-        //send by 100mb
-        int bytesIn1mb = largeFileSize;
-        int currentPosition = 0;
-        int partNumber = 0;
-        int partsCount = (int) (fileSize / (bytesIn1mb));
-        RandomAccessFile ra = new RandomAccessFile(path.toString(), "r");
-        while (currentPosition < fileSize) {
-            byte[] data = new byte[Math.min(bytesIn1mb, (int) (fileSize - currentPosition))];
-            ra.seek(currentPosition);
-            int readBytes = ra.read(data);
-            BigFileMessage filePart = new BigFileMessage(path, userName, partNumber, partsCount, data);
-            network.sendMsg(filePart);
-            partNumber++;
-            currentPosition += readBytes;
-            final int setValue = (100 * partNumber) / partsCount;
-            if (setValue > bfpb.getPreviousValue()) {
-                SwingUtilities.invokeLater(new Runnable() {
-                    @Override
-                    public void run() {
-                        bfpb.setProgressBar(setValue);
-                    }
-                });
-                bfpb.setPreviousValue(setValue);
-            }
-            if (partNumber == partsCount) {
-                bfpb.close();
-            }
-        }
-    }
-
-    private void sendSmallFile(Path path) throws IOException {
-        FileMessage fm = new FileMessage(path, userName);
-        network.sendMsg(fm);
-    }
-
-    @Override
-    public void clientListFile() {
-        try {
-            fll = new FileListMessage(Paths.get(getClientRootPath()));
-        } catch (IOException ex) {
-            ex.printStackTrace();
-        }
-        List<FileAbout> filesList = fll.getFilesList();
-        rows = filesList.size();
-        cols = 2;
-        if (rows == 0) {
-            rows = 1;
-            arrClient = new String[rows][cols];
-            arrClient[0][0] = "     ";
-            arrClient[0][1] = "     ";
-        } else {
-            arrClient = new String[rows][cols];
-            for (int i = 0; i < rows; i++) {
-                arrClient[i][0] = filesList.get(i).getName();
-                arrClient[i][1] = String.valueOf(filesList.get(i).getSize()) + " bytes";
-            }
-        }
-        updateFileListLocal(arrClient);
     }
 
     private void serverListFile() {
@@ -345,6 +259,7 @@ public class MainWindow extends JFrame implements ListFileReciever {
 
     @Override
     public void updateFileListLocal(Object[][] fll) {
+        arrClient = fll;
         SwingUtilities.invokeLater(new Runnable() {
             @Override
             public void run() {
@@ -366,26 +281,7 @@ public class MainWindow extends JFrame implements ListFileReciever {
         });
     }
 
-    public static FileListMessage getListFileClient() {
-        FileListMessage fll = null;
-        try {
-            fll = new FileListMessage(Paths.get(getClientRootPath()));
-        } catch (IOException ex) {
-            ex.printStackTrace();
-        }
-        return fll;
+    public static String getUserName() {
+        return userName;
     }
-
-    public static String getClientRootPath() {
-        Path path = Paths.get(rootPath);
-        if (!Files.exists(path)) {
-            try {
-                Files.createDirectories(path);
-            } catch (IOException ex) {
-                ex.printStackTrace();
-            }
-        }
-        return path.toString();
-    }
-
 }

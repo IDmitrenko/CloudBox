@@ -1,29 +1,21 @@
-package com.cloud.client;
+package com.cloud.client.utils;
 
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
-public class PbarTest extends JFrame {
+public class PbarTest2 extends JFrame {
     JProgressBar progressBar;
+
     public static void main(String[] args) throws InterruptedException {
-        PbarTest boxMainWindow = new PbarTest();
-        for(int i = 1;i<5;i++) {
-            final int j = i;
-            SwingUtilities.invokeLater(() -> {
-                try {
-                    boxMainWindow.runBar(j);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-            });
-            TimeUnit.SECONDS.sleep(1L);
-        }
+        PbarTest2 boxMainWindow = new PbarTest2();
+
     }
 
-    public PbarTest() throws InterruptedException {
+    public PbarTest2() throws InterruptedException {
         setTitle("CLOUD");
         setBounds(200, 200, 800, 800);
         setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
@@ -33,6 +25,15 @@ public class PbarTest extends JFrame {
         sendButtonClient.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
+                Pbar bar = new Pbar(PbarTest2.this);
+                try {
+                    bar.runBar(0);
+                } catch (InterruptedException e1) {
+                    e1.printStackTrace();
+                }
+
+                startBar(bar);
+
             }
         });
         JPanel sendCommandPanel = new JPanel();
@@ -49,6 +50,28 @@ public class PbarTest extends JFrame {
         setVisible(true);
     }
 
+    private void startBar(Pbar bar) {
+        CompletableFuture.supplyAsync(() -> {
+            for (int i = 1; i < 5; i++) {
+                final int j = i;
+
+                SwingUtilities.invokeLater(() -> {
+                    try {
+                        bar.runBar(j * 10);
+                    } catch (InterruptedException e12) {
+                        e12.printStackTrace();
+                    }
+                });
+                try {
+                    TimeUnit.SECONDS.sleep(1L);
+                } catch (InterruptedException e1) {
+                    e1.printStackTrace();
+                }
+            }
+            return null;
+        });
+    }
+
     public void runBar(int t) throws InterruptedException {
         /*for (int i = 1; i <= 10; i++) {
             progressBar.setValue(10 * i);
@@ -61,6 +84,14 @@ public class PbarTest extends JFrame {
         final JProgressBar progressBar;
         static private int BOR = 10;
         final JFrame frame;
+
+        public void runBar(int t) throws InterruptedException {
+        /*for (int i = 1; i <= 10; i++) {
+            progressBar.setValue(10 * i);
+            TimeUnit.SECONDS.sleep(1L);
+        }*/
+            progressBar.setValue(t);
+        }
 
         public Pbar(Frame parent) {
 

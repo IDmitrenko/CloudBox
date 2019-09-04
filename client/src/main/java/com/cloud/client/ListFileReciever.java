@@ -6,5 +6,4 @@ public interface ListFileReciever {
 
     void updateFileListServer(Object[][] fls);
 
-    void clientListFile();
 }

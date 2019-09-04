@@ -5,7 +5,6 @@ import com.cloud.common.transfer.BigFileMessage;
 import com.cloud.common.transfer.CommandMessage;
 import com.cloud.common.transfer.FileMessage;
 import com.cloud.common.utils.FileAbout;
-import com.cloud.common.utils.FilePartitionWorker;
 import com.cloud.server.protocol.LoginMap;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
@@ -23,7 +22,7 @@ import java.nio.file.Paths;
 
 public class MainHandler extends ChannelInboundHandlerAdapter {
     private static final Logger logger = LogManager.getLogger(MainHandler.class.getName());
-    private static final String rootPath = "server/repository/";
+    public static final String rootPath = "server/repository/";
     private static final int largeFileSize = 1024 * 1024 * 100;
     private String clientName;
     private boolean authorized;
@@ -127,11 +126,9 @@ public class MainHandler extends ChannelInboundHandlerAdapter {
             try {
                 String nameFile = ((FileAbout) cm.getAttachment()[0]).getName();
                 Path path = Paths.get(rootPath + clientName + "/" + nameFile);
+//                FileAbout fa = (FileAbout) cm.getAttachment()[0];
+//                Path path1 = Paths.get(fa.getFile().getAbsolutePath());
                 readFileAbout(ctx, path);
-/*
-                Path path = Paths.get(((File) cm.getAttachment()[0]).getAbsolutePath());
-                FilePartitionWorker.sendFileFromServer(path, ctx.channel());
-*/
             } catch (Exception ex) {
                 ex.printStackTrace();
             }
@@ -155,7 +152,6 @@ public class MainHandler extends ChannelInboundHandlerAdapter {
 
     private void sendBigFile(ChannelHandlerContext ctx, Path path) throws IOException {
         long fileSize = path.toFile().length();
-        //send by 100mb
         int bytesIn1mb = largeFileSize;
         int currentPosition = 0;
         int partNumber = 0;
