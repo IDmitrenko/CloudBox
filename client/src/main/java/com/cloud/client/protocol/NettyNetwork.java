@@ -166,7 +166,7 @@ public class NettyNetwork {
 
     public void writeBigFileMessage(ChannelHandlerContext ctx, BigFileMessage msg) throws IOException, InterruptedException {
         int partNumber = msg.getPartNumber();
-        if (partNumber == 0) {
+        if (partNumber == 1) {
             deleteFile(msg.getFilename());
             bfbp = new BigFileProgressBar(mainFrame);
             bfbp.setPreviousValue(0);
@@ -176,7 +176,6 @@ public class NettyNetwork {
         ra.seek(file.length());
         ra.write(msg.getData());
         ra.close();
-        partNumber++;
         final int setValue = (100 * partNumber) / msg.getPartsCount();
         if (setValue > bfbp.getPreviousValue()) {
             SwingUtilities.invokeLater(new Runnable() {
@@ -189,8 +188,8 @@ public class NettyNetwork {
         }
         if (msg.getPartsCount() == partNumber) {
             TimeUnit.SECONDS.sleep(1L);
-            bfbp.close();
             clientListFile();
+            bfbp.close();
         }
     }
 
@@ -213,19 +212,18 @@ public class NettyNetwork {
     public void sendBigFile(Path path) throws IOException, InterruptedException {
         final BigFileProgressBar bfpb = new BigFileProgressBar(mainFrame);
         long fileSize = path.toFile().length();
-        int bytesIn1mb = largeFileSize;
         int currentPosition = 0;
         int partNumber = 0;
         bfpb.setPreviousValue(0);
-        int partsCount = (int) (fileSize / (bytesIn1mb));
+        int partsCount = (int) (fileSize / largeFileSize);
         RandomAccessFile ra = new RandomAccessFile(path.toString(), "r");
         while (currentPosition < fileSize) {
-            byte[] data = new byte[Math.min(bytesIn1mb, (int) (fileSize - currentPosition))];
+            byte[] data = new byte[Math.min(largeFileSize, (int) (fileSize - currentPosition))];
             ra.seek(currentPosition);
             int readBytes = ra.read(data);
+            partNumber++;
             BigFileMessage filePart = new BigFileMessage(path, MainWindow.getUserName(), partNumber, partsCount, data);
             sendMsg(filePart);
-            partNumber++;
             currentPosition += readBytes;
             final int setValue = (100 * partNumber) / partsCount;
             if (setValue > bfpb.getPreviousValue()) {
@@ -242,6 +240,7 @@ public class NettyNetwork {
                 bfpb.close();
             }
         }
+        ra.close();
     }
 
     public void sendSmallFile(Path path) throws IOException {

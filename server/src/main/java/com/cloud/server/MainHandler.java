@@ -60,7 +60,7 @@ public class MainHandler extends ChannelInboundHandlerAdapter {
     }
 
     private void writeBigFileMessage(ChannelHandlerContext ctx, BigFileMessage msg) throws IOException {
-        if (msg.getPartNumber() == 0) {
+        if (msg.getPartNumber() == 1) {
             deleteFile(msg.getFilename());
         }
         File file = new File(rootPath + clientName + "/" + msg.getFilename());
@@ -152,18 +152,17 @@ public class MainHandler extends ChannelInboundHandlerAdapter {
 
     private void sendBigFile(ChannelHandlerContext ctx, Path path) throws IOException {
         long fileSize = path.toFile().length();
-        int bytesIn1mb = largeFileSize;
         int currentPosition = 0;
         int partNumber = 0;
-        int partsCount = (int) (fileSize / (bytesIn1mb));
+        int partsCount = (int) (fileSize / largeFileSize);
         RandomAccessFile ra = new RandomAccessFile(path.toString(), "r");
         while (currentPosition < fileSize) {
-            byte[] data = new byte[Math.min(bytesIn1mb, (int) (fileSize - currentPosition))];
+            byte[] data = new byte[Math.min(largeFileSize, (int) (fileSize - currentPosition))];
             ra.seek(currentPosition);
             int readBytes = ra.read(data);
+            partNumber++;
             BigFileMessage filePart = new BigFileMessage(path, clientName, partNumber, partsCount, data);
             ctx.writeAndFlush(filePart);
-            partNumber++;
             currentPosition += readBytes;
         }
     }
