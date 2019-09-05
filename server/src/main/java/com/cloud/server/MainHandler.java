@@ -61,9 +61,11 @@ public class MainHandler extends ChannelInboundHandlerAdapter {
 
     private void writeBigFileMessage(ChannelHandlerContext ctx, BigFileMessage msg) throws IOException {
         logger.info("Пришла для записи " + msg.getPartNumber() + " часть BigFile");
+/*
         if (msg.getPartNumber() == 1) {
             deleteFile(msg.getFilename());
         }
+*/
         File file = new File(rootPath + clientName + "/" + msg.getFilename());
         RandomAccessFile ra = new RandomAccessFile(file, "rw");
         ra.seek(file.length());
@@ -167,6 +169,7 @@ public class MainHandler extends ChannelInboundHandlerAdapter {
             logger.info("Отправили для записи " + partNumber + " часть BigFile");
             currentPosition += readBytes;
         }
+        ra.close();
     }
 
     @Override
