@@ -110,6 +110,8 @@ public class MainHandler extends ChannelInboundHandlerAdapter {
             CommandMessage amAuthOk = new CommandMessage(CommandMessage.CMD_MSG_AUTH_OK);
             ctx.writeAndFlush(amAuthOk).await();
             this.clientName = login;
+// добавление Handler в контейнер после успешной авторизации
+//            ctx.pipeline().addLast(new MainHandler(clientName));
             ServerUtilities.sendFileList(ctx.channel(), login);
         } else {
             CommandMessage amAuthNot = new CommandMessage(CommandMessage.CMD_MSG_AUTH_NOT);
@@ -178,6 +180,7 @@ public class MainHandler extends ChannelInboundHandlerAdapter {
             ctx.writeAndFlush(filePart);
             logger.info("Отправили для записи " + partNumber + " часть BigFile");
             currentPosition += readBytes;
+// механизм подтверждения, что данный пакет получен другой стороной
         }
         ra.close();
     }
@@ -192,4 +195,10 @@ public class MainHandler extends ChannelInboundHandlerAdapter {
         cause.printStackTrace();
         ctx.close();
     }
+
+    @Override
+    public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+        super.channelInactive(ctx);
+    }
+
 }

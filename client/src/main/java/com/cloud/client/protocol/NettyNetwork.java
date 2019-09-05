@@ -234,6 +234,7 @@ public class NettyNetwork {
             logger.info("Отправили для записи " + partNumber + " часть BigFile");
             TimeUnit.SECONDS.sleep(1L);
             currentPosition += readBytes;
+// механизм подтверждения, что данный пакет получен другой стороной
             final int setValue = (100 * partNumber) / partsCount;
             if (setValue > bfpb.getPreviousValue()) {
                 SwingUtilities.invokeLater(new Runnable() {
