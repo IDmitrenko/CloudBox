@@ -18,6 +18,8 @@ import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.codec.serialization.ClassResolvers;
 import io.netty.handler.codec.serialization.ObjectDecoder;
 import io.netty.handler.codec.serialization.ObjectEncoder;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import javax.swing.*;
 import java.io.*;
@@ -30,6 +32,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 
 public class NettyNetwork {
+
+    private static final Logger logger = LogManager.getLogger(NettyNetwork.class.getName());
+
     private volatile boolean isAuth = false;
 
     private ListFileReciever listFileReciever;
@@ -112,6 +117,7 @@ public class NettyNetwork {
             lock.wait();
         }
         if (!isAuth) {
+            logger.info("Клиент " + am.getLogin() + " в системе не зарегистрирован!");
             throw new AuthException("Клиент " + am.getLogin() + " в системе не зарегистрирован!");
         }
     }
@@ -166,6 +172,7 @@ public class NettyNetwork {
 
     public void writeBigFileMessage(ChannelHandlerContext ctx, BigFileMessage msg) throws IOException, InterruptedException {
         int partNumber = msg.getPartNumber();
+        logger.info("Пришла для записи " + partNumber + " часть BigFile");
         if (partNumber == 1) {
             deleteFile(msg.getFilename());
             bfbp = new BigFileProgressBar(mainFrame);
@@ -215,7 +222,7 @@ public class NettyNetwork {
         int currentPosition = 0;
         int partNumber = 0;
         bfpb.setPreviousValue(0);
-        int partsCount = (int) (fileSize / largeFileSize);
+        int partsCount = (int) Math.ceil((double) fileSize / largeFileSize);
         RandomAccessFile ra = new RandomAccessFile(path.toString(), "r");
         while (currentPosition < fileSize) {
             byte[] data = new byte[Math.min(largeFileSize, (int) (fileSize - currentPosition))];
@@ -224,6 +231,8 @@ public class NettyNetwork {
             partNumber++;
             BigFileMessage filePart = new BigFileMessage(path, MainWindow.getUserName(), partNumber, partsCount, data);
             sendMsg(filePart);
+            logger.info("Отправили для записи " + partNumber + " часть BigFile");
+            TimeUnit.SECONDS.sleep(1L);
             currentPosition += readBytes;
             final int setValue = (100 * partNumber) / partsCount;
             if (setValue > bfpb.getPreviousValue()) {

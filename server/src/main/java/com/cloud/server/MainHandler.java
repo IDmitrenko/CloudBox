@@ -60,6 +60,7 @@ public class MainHandler extends ChannelInboundHandlerAdapter {
     }
 
     private void writeBigFileMessage(ChannelHandlerContext ctx, BigFileMessage msg) throws IOException {
+        logger.info("Пришла для записи " + msg.getPartNumber() + " часть BigFile");
         if (msg.getPartNumber() == 1) {
             deleteFile(msg.getFilename());
         }
@@ -154,7 +155,7 @@ public class MainHandler extends ChannelInboundHandlerAdapter {
         long fileSize = path.toFile().length();
         int currentPosition = 0;
         int partNumber = 0;
-        int partsCount = (int) (fileSize / largeFileSize);
+        int partsCount = (int) Math.ceil((double) fileSize / largeFileSize);
         RandomAccessFile ra = new RandomAccessFile(path.toString(), "r");
         while (currentPosition < fileSize) {
             byte[] data = new byte[Math.min(largeFileSize, (int) (fileSize - currentPosition))];
@@ -163,6 +164,7 @@ public class MainHandler extends ChannelInboundHandlerAdapter {
             partNumber++;
             BigFileMessage filePart = new BigFileMessage(path, clientName, partNumber, partsCount, data);
             ctx.writeAndFlush(filePart);
+            logger.info("Отправили для записи " + partNumber + " часть BigFile");
             currentPosition += readBytes;
         }
     }
