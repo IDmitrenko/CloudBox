@@ -19,6 +19,8 @@ import java.io.RandomAccessFile;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class MainHandler extends ChannelInboundHandlerAdapter {
     private static final Logger logger = LogManager.getLogger(MainHandler.class.getName());
@@ -26,6 +28,8 @@ public class MainHandler extends ChannelInboundHandlerAdapter {
     private static final int largeFileSize = 1024 * 1024 * 100;
     private String clientName;
     private boolean authorized;
+
+    ExecutorService executorService = Executors.newCachedThreadPool();
 
     public MainHandler() {
     }
@@ -141,7 +145,13 @@ public class MainHandler extends ChannelInboundHandlerAdapter {
     private void readFileAbout(ChannelHandlerContext ctx, Path path) throws IOException {
         if (Files.exists(path)) {
             if (bigFile(path)) {
-                sendBigFile(ctx, path);
+                executorService.submit(() -> {
+                    try {
+                        sendBigFile(ctx, path);
+                    } catch (IOException ex) {
+                        ex.printStackTrace();
+                    }
+                });
             } else {
                 FileMessage fm = new FileMessage(path);
                 ctx.writeAndFlush(fm);
