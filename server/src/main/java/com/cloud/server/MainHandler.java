@@ -1,9 +1,6 @@
 package com.cloud.server;
 
-import com.cloud.common.transfer.AuthMessage;
-import com.cloud.common.transfer.BigFileMessage;
-import com.cloud.common.transfer.CommandMessage;
-import com.cloud.common.transfer.FileMessage;
+import com.cloud.common.transfer.*;
 import com.cloud.common.utils.FileAbout;
 import com.cloud.server.protocol.LoginMap;
 import io.netty.channel.ChannelHandlerContext;
@@ -64,12 +61,10 @@ public class MainHandler extends ChannelInboundHandlerAdapter {
     }
 
     private void writeBigFileMessage(ChannelHandlerContext ctx, BigFileMessage msg) throws IOException {
-        logger.info("Пришла для записи " + msg.getPartNumber() + " часть BigFile");
-/*
+        logger.info("Пришла для записи " + msg.getPartNumber() + " часть файла " + msg.getFilename());
         if (msg.getPartNumber() == 1) {
             deleteFile(msg.getFilename());
         }
-*/
         File file = new File(rootPath + clientName + "/" + msg.getFilename());
         RandomAccessFile ra = new RandomAccessFile(file, "rw");
         ra.seek(file.length());
@@ -78,6 +73,11 @@ public class MainHandler extends ChannelInboundHandlerAdapter {
         if (msg.getPartsCount() == msg.getPartNumber()) {
             ServerUtilities.sendFileList(ctx.channel(), clientName);
         }
+        // sent a message about the delivery of the package
+        DeliveryPackage dp = new DeliveryPackage(msg.getPath(), clientName, msg.getPartNumber(), msg.getPartsCount());
+        ctx.writeAndFlush(dp);
+        logger.info("Отправили подтверждение пользователю " + clientName +
+                " о приеме части " + msg.getPartNumber() + " файла " + msg.getFilename());
     }
 
     private void deleteFile(String nameFile) {

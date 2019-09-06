@@ -35,16 +35,12 @@ public class NettyNetwork {
 
     private static final Logger logger = LogManager.getLogger(NettyNetwork.class.getName());
 
-    private volatile boolean isAuth = false;
-
     private ListFileReciever listFileReciever;
-
     public void setListFileReciever(ListFileReciever listFileReciever) {
         this.listFileReciever = listFileReciever;
     }
 
     private JFrame mainFrame;
-
     public void setMainFrame(JFrame mainFrame) {
         this.mainFrame = mainFrame;
     }
@@ -57,6 +53,7 @@ public class NettyNetwork {
     public NettyNetwork() {
     }
 
+    private volatile boolean isAuth = false;
     private Object lock = new Object();
 
     private static NettyNetwork ourInstance = new NettyNetwork();
@@ -119,6 +116,22 @@ public class NettyNetwork {
         if (!isAuth) {
             logger.info("Клиент " + am.getLogin() + " в системе не зарегистрирован!");
             throw new AuthException("Клиент " + am.getLogin() + " в системе не зарегистрирован!");
+        }
+    }
+
+    public void packageDeliveries() {
+        synchronized (lock) {
+            try {
+                lock.wait();
+            } catch (InterruptedException ex) {
+                ex.printStackTrace();
+            }
+        }
+    }
+
+    public void waitingPackageDelivery() {
+        synchronized (lock) {
+                lock.notifyAll();
         }
     }
 
@@ -230,11 +243,12 @@ public class NettyNetwork {
             int readBytes = ra.read(data);
             partNumber++;
             BigFileMessage filePart = new BigFileMessage(path, MainWindow.getUserName(), partNumber, partsCount, data);
+
             sendMsg(filePart);
-            logger.info("Отправили для записи " + partNumber + " часть BigFile");
+            logger.info("Отправили для записи " + partNumber + " часть файла " + path.getFileName());
             TimeUnit.SECONDS.sleep(1L);
             currentPosition += readBytes;
-// механизм подтверждения, что данный пакет получен другой стороной
+
             final int setValue = (100 * partNumber) / partsCount;
             if (setValue > bfpb.getPreviousValue()) {
                 SwingUtilities.invokeLater(new Runnable() {
@@ -245,6 +259,9 @@ public class NettyNetwork {
                 });
                 bfpb.setPreviousValue(setValue);
             }
+// механизм подтверждения, что данный пакет получен другой стороной
+            packageDeliveries();
+
             if (partNumber == partsCount) {
                 TimeUnit.SECONDS.sleep(1L);
                 bfpb.close();

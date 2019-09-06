@@ -1,17 +1,17 @@
 package com.cloud.client.protocol;
 
-import com.cloud.common.transfer.BigFileMessage;
-import com.cloud.common.transfer.CommandMessage;
-import com.cloud.common.transfer.FileListMessage;
-import com.cloud.common.transfer.FileMessage;
+import com.cloud.common.transfer.*;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.util.ReferenceCountUtil;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.util.concurrent.ExecutorService;
 
 public class ClientHandler extends ChannelInboundHandlerAdapter {
+    private static final Logger logger = LogManager.getLogger(ClientHandler.class.getName());
 
     private NettyNetwork nettyNetwork;
     private ExecutorService executorService;
@@ -45,6 +45,14 @@ public class ClientHandler extends ChannelInboundHandlerAdapter {
                     });
                 } else if (msg instanceof FileMessage) {
                     nettyNetwork.writeFileMessage(ctx, (FileMessage) msg);
+                }
+
+                if (msg instanceof DeliveryPackage) {
+                    DeliveryPackage dp = (DeliveryPackage) msg;
+                    int partNumber = dp.getPartNumber();
+                    logger.info("Пришло подтверждение сервера о приеме части " +
+                            partNumber + " файла " + dp.getFilename());
+                    nettyNetwork.waitingPackageDelivery();
                 }
 
                 if (msg instanceof FileListMessage) {
