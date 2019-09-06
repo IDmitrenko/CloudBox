@@ -1,5 +1,6 @@
 package com.cloud.client;
 
+import com.cloud.client.exception.AuthException;
 import com.cloud.client.protocol.NettyNetwork;
 import com.cloud.common.transfer.AuthMessage;
 

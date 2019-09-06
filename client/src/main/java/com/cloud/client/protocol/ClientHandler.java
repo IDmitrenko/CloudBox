@@ -52,7 +52,7 @@ public class ClientHandler extends ChannelInboundHandlerAdapter {
                     int partNumber = dp.getPartNumber();
                     logger.info("Пришло подтверждение сервера о приеме части " +
                             partNumber + " файла " + dp.getFileName());
-                    nettyNetwork.waitingPackageDelivery();
+                    nettyNetwork.waitingPackageDelivery(true);
                 }
 
                 if (msg instanceof FileListMessage) {

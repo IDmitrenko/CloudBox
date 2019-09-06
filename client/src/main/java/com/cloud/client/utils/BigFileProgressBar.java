@@ -1,4 +1,4 @@
-package com.cloud.client;
+package com.cloud.client.utils;
 
 import javax.swing.*;
 import java.awt.*;

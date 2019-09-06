@@ -1,4 +1,4 @@
-package com.cloud.client;
+package com.cloud.client.exception;
 
 public class AuthException extends Exception {
     public AuthException() {

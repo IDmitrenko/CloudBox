@@ -1,7 +1,7 @@
 package com.cloud.client.protocol;
 
-import com.cloud.client.AuthException;
-import com.cloud.client.BigFileProgressBar;
+import com.cloud.client.exception.AuthException;
+import com.cloud.client.utils.BigFileProgressBar;
 import com.cloud.client.ListFileReciever;
 import com.cloud.client.MainWindow;
 import com.cloud.common.transfer.AbstractMessage;
@@ -55,6 +55,7 @@ public class NettyNetwork {
 
     private volatile boolean isAuth = false;
     private Object lock = new Object();
+    private volatile boolean isPackage = false;
 
     private static NettyNetwork ourInstance = new NettyNetwork();
 
@@ -122,16 +123,19 @@ public class NettyNetwork {
     public void packageDeliveries() {
         synchronized (lock) {
             try {
-                lock.wait();
+                while (!isPackage) {
+                    lock.wait();
+                }
             } catch (InterruptedException ex) {
                 ex.printStackTrace();
             }
         }
     }
 
-    public void waitingPackageDelivery() {
+    public void waitingPackageDelivery(boolean isDeliveried) {
+        isPackage = isDeliveried;
         synchronized (lock) {
-                lock.notify();
+                lock.notifyAll();
         }
     }
 
@@ -232,13 +236,20 @@ public class NettyNetwork {
     public void sendBigFile(Path path) throws IOException, InterruptedException {
         final BigFileProgressBar bfpb = new BigFileProgressBar(mainFrame);
         long fileSize = path.toFile().length();
-        int currentPosition = 0;
+        long currentPosition = 0L;
         int partNumber = 0;
         bfpb.setPreviousValue(0);
         int partsCount = (int) Math.ceil((double) fileSize / largeFileSize);
         RandomAccessFile ra = new RandomAccessFile(path.toString(), "r");
+        logger.info("Открыли файл " + path.getFileName() +
+                ". Размер - " + fileSize + ". Состоит из " + partsCount + " частей.");
         while (currentPosition < fileSize) {
-            byte[] data = new byte[Math.min(largeFileSize, (int) (fileSize - currentPosition))];
+            byte[] data;
+            if ((fileSize - currentPosition) > Integer.MAX_VALUE) {
+                data = new byte[largeFileSize];
+            } else {
+                data = new byte[Math.min(largeFileSize, (int) (fileSize - currentPosition))];
+            }
             ra.seek(currentPosition);
             int readBytes = ra.read(data);
             partNumber++;
