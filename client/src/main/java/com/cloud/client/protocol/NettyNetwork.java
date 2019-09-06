@@ -131,7 +131,7 @@ public class NettyNetwork {
 
     public void waitingPackageDelivery() {
         synchronized (lock) {
-                lock.notifyAll();
+                lock.notify();
         }
     }
 
@@ -261,7 +261,7 @@ public class NettyNetwork {
             }
 // механизм подтверждения, что данный пакет получен другой стороной
             packageDeliveries();
-
+            logger.info("partNumber = " + partNumber + "; partsCount = " + partsCount);
             if (partNumber == partsCount) {
                 TimeUnit.SECONDS.sleep(1L);
                 bfpb.close();

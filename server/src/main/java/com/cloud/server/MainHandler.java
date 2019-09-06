@@ -74,7 +74,7 @@ public class MainHandler extends ChannelInboundHandlerAdapter {
             ServerUtilities.sendFileList(ctx.channel(), clientName);
         }
         // sent a message about the delivery of the package
-        DeliveryPackage dp = new DeliveryPackage(msg.getPath(), clientName, msg.getPartNumber(), msg.getPartsCount());
+        DeliveryPackage dp = new DeliveryPackage(msg.getFilename(), clientName, msg.getPartNumber(), msg.getPartsCount());
         ctx.writeAndFlush(dp);
         logger.info("Отправили подтверждение пользователю " + clientName +
                 " о приеме части " + msg.getPartNumber() + " файла " + msg.getFilename());
@@ -150,7 +150,7 @@ public class MainHandler extends ChannelInboundHandlerAdapter {
                 executorService.submit(() -> {
                     try {
                         sendBigFile(ctx, path);
-                    } catch (IOException ex) {
+                    } catch (InterruptedException | IOException ex) {
                         ex.printStackTrace();
                     }
                 });
@@ -165,7 +165,7 @@ public class MainHandler extends ChannelInboundHandlerAdapter {
         return path.toFile().length() > largeFileSize;
     }
 
-    private void sendBigFile(ChannelHandlerContext ctx, Path path) throws IOException {
+    private void sendBigFile(ChannelHandlerContext ctx, Path path) throws IOException, InterruptedException {
         long fileSize = path.toFile().length();
         int currentPosition = 0;
         int partNumber = 0;
@@ -177,18 +177,20 @@ public class MainHandler extends ChannelInboundHandlerAdapter {
             int readBytes = ra.read(data);
             partNumber++;
             BigFileMessage filePart = new BigFileMessage(path, clientName, partNumber, partsCount, data);
-            ctx.writeAndFlush(filePart);
-            logger.info("Отправили для записи " + partNumber + " часть BigFile");
+            ctx.writeAndFlush(filePart).await();
+            logger.info("Отправили для записи " + partNumber + " часть файла " + path.getFileName());
             currentPosition += readBytes;
 // механизм подтверждения, что данный пакет получен другой стороной
         }
         ra.close();
     }
 
+/*
     @Override
     public void channelReadComplete(ChannelHandlerContext ctx) throws Exception {
         ctx.flush();
     }
+*/
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
@@ -196,9 +198,11 @@ public class MainHandler extends ChannelInboundHandlerAdapter {
         ctx.close();
     }
 
+/*
     @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
         super.channelInactive(ctx);
     }
+*/
 
 }
