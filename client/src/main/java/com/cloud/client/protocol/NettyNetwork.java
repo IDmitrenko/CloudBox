@@ -7,6 +7,7 @@ import com.cloud.client.MainWindow;
 import com.cloud.common.transfer.AbstractMessage;
 import com.cloud.common.transfer.AuthMessage;
 import com.cloud.common.transfer.BigFileMessage;
+import com.cloud.common.transfer.DeliveryPackage;
 import com.cloud.common.transfer.FileListMessage;
 import com.cloud.common.transfer.FileMessage;
 import com.cloud.common.utils.FileAbout;
@@ -135,7 +136,7 @@ public class NettyNetwork {
     public void waitingPackageDelivery(boolean isDeliveried) {
         isPackage = isDeliveried;
         synchronized (lock) {
-                lock.notifyAll();
+                lock.notify();
         }
     }
 
@@ -189,7 +190,7 @@ public class NettyNetwork {
 
     public void writeBigFileMessage(ChannelHandlerContext ctx, BigFileMessage msg) throws IOException, InterruptedException {
         int partNumber = msg.getPartNumber();
-        logger.info("Пришла для записи " + partNumber + " часть BigFile");
+        logger.info("Пришла для записи " + partNumber + " часть файла " + msg.getFilename());
         if (partNumber == 1) {
             deleteFile(msg.getFilename());
             bfbp = new BigFileProgressBar(mainFrame);
@@ -215,6 +216,11 @@ public class NettyNetwork {
             clientListFile();
             bfbp.close();
         }
+        // sent a message about the delivery of the package
+        DeliveryPackage dp = new DeliveryPackage(msg.getFilename(), MainWindow.getUserName(), msg.getPartNumber(), msg.getPartsCount());
+        ctx.writeAndFlush(dp);
+        logger.info("Отправили подтверждение на сервер о приеме части " +
+                msg.getPartNumber() + " файла " + msg.getFilename());
     }
 
     public void deleteFile(String nameFile) {
@@ -257,8 +263,8 @@ public class NettyNetwork {
 
             sendMsg(filePart);
             logger.info("Отправили для записи " + partNumber + " часть файла " + path.getFileName());
-            TimeUnit.SECONDS.sleep(1L);
             currentPosition += readBytes;
+            TimeUnit.SECONDS.sleep(1L);
 
             final int setValue = (100 * partNumber) / partsCount;
             if (setValue > bfpb.getPreviousValue()) {

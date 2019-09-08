@@ -18,6 +18,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 public class MainHandler extends ChannelInboundHandlerAdapter {
     private static final Logger logger = LogManager.getLogger(MainHandler.class.getName());
@@ -25,6 +26,9 @@ public class MainHandler extends ChannelInboundHandlerAdapter {
     private static final int largeFileSize = 1024 * 1024 * 100;
     private String clientName;
     private boolean authorized;
+
+    private Object lock = new Object();
+    private volatile boolean isPackage = false;
 
     ExecutorService executorService = Executors.newCachedThreadPool();
 
@@ -46,6 +50,14 @@ public class MainHandler extends ChannelInboundHandlerAdapter {
                     if (msg instanceof AuthMessage) {
                         authentication(ctx, (AuthMessage) msg);
                     }
+                }
+
+                if (msg instanceof DeliveryPackage) {
+                    DeliveryPackage dp = (DeliveryPackage) msg;
+                    int partNumber = dp.getPartNumber();
+                    logger.info("Пришло подтверждение клиента "  + clientName + " о приеме части " +
+                            partNumber + " файла " + dp.getFileName());
+                    waitingPackageDelivery(true);
                 }
 
                 if (msg instanceof CommandMessage) {
@@ -167,20 +179,32 @@ public class MainHandler extends ChannelInboundHandlerAdapter {
 
     private void sendBigFile(ChannelHandlerContext ctx, Path path) throws IOException, InterruptedException {
         long fileSize = path.toFile().length();
-        int currentPosition = 0;
+        long currentPosition = 0;
         int partNumber = 0;
         int partsCount = (int) Math.ceil((double) fileSize / largeFileSize);
         RandomAccessFile ra = new RandomAccessFile(path.toString(), "r");
+        logger.info("Открыли файл " + path.getFileName() +
+                ". Размер - " + fileSize + ". Состоит из " + partsCount + " частей.");
         while (currentPosition < fileSize) {
-            byte[] data = new byte[Math.min(largeFileSize, (int) (fileSize - currentPosition))];
+            byte[] data;
+            if ((fileSize - currentPosition) > Integer.MAX_VALUE) {
+                data = new byte[largeFileSize];
+            } else {
+                data = new byte[Math.min(largeFileSize, (int) (fileSize - currentPosition))];
+            }
             ra.seek(currentPosition);
             int readBytes = ra.read(data);
             partNumber++;
             BigFileMessage filePart = new BigFileMessage(path, clientName, partNumber, partsCount, data);
+
             ctx.writeAndFlush(filePart).await();
             logger.info("Отправили для записи " + partNumber + " часть файла " + path.getFileName());
             currentPosition += readBytes;
+            TimeUnit.SECONDS.sleep(1L);
+
 // механизм подтверждения, что данный пакет получен другой стороной
+            packageDeliveries();
+            logger.info("partNumber = " + partNumber + "; partsCount = " + partsCount);
         }
         ra.close();
     }
@@ -191,6 +215,25 @@ public class MainHandler extends ChannelInboundHandlerAdapter {
         ctx.flush();
     }
 */
+
+    public void packageDeliveries() {
+        synchronized (lock) {
+            try {
+                while (!isPackage) {
+                    lock.wait();
+                }
+            } catch (InterruptedException ex) {
+                ex.printStackTrace();
+            }
+        }
+    }
+
+    public void waitingPackageDelivery(boolean isDeliveried) {
+        isPackage = isDeliveried;
+        synchronized (lock) {
+            lock.notify();
+        }
+    }
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {

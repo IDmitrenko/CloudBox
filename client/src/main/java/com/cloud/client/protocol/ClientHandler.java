@@ -58,6 +58,8 @@ public class ClientHandler extends ChannelInboundHandlerAdapter {
                 if (msg instanceof FileListMessage) {
                     FileListMessage flm = (FileListMessage) msg;
                     nettyNetwork.updateFileListServer(flm);
+                } else {
+                    ctx.fireChannelRead(msg);
                 }
             }
         } catch (IOException ex) {
