@@ -29,6 +29,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
+import java.util.Properties;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 
@@ -65,6 +66,10 @@ public class NettyNetwork {
     }
 
     private Channel currentChannel;
+    public Channel getCurrentChannel() {
+        return currentChannel;
+    }
+
     private BigFileProgressBar bfbp;
 
     private static int cols = 2;
@@ -73,19 +78,39 @@ public class NettyNetwork {
     private Object[][] arrClient;
     private static final int maxObjectSize = 101 * 1024 * 1024;
     private static final int largeFileSize = 1024 * 1024 * 100;
-    private static final String rootPath = "client/repository";
 
-    public Channel getCurrentChannel() {
-        return currentChannel;
-    }
+    private static final String rootPath = "client/repository";
+    private static String hostName = "127.0.0.1";
+    private static int port = 8189;
 
     public void start() {
+
+        Properties props = new Properties();
+        try {
+            props.load(new FileInputStream("app.properties"));
+            if (props.getProperty("hostName") == null) {
+                props.setProperty("hostName", hostName);
+                props.store(new FileOutputStream("app.properties"), null);
+            } else {
+                hostName = props.getProperty("hostName");
+            }
+            if (props.getProperty("port") == null) {
+                props.setProperty("port", Integer.toString(port));
+                props.store(new FileOutputStream("app.properties"), null);
+            } else {
+                port = Integer.parseInt(props.getProperty("port"));
+            }
+
+        } catch (IOException ex) {
+            ex.printStackTrace();
+        }
+
         EventLoopGroup group = new NioEventLoopGroup();
         try {
             Bootstrap clientBootstrap = new Bootstrap();
             clientBootstrap.group(group);
             clientBootstrap.channel(NioSocketChannel.class);
-            clientBootstrap.remoteAddress(new InetSocketAddress("127.0.0.1", 8189));
+            clientBootstrap.remoteAddress(new InetSocketAddress(hostName, port));
             clientBootstrap.handler(new ChannelInitializer<SocketChannel>() {
                 protected void initChannel(SocketChannel socketChannel) throws Exception {
                     socketChannel.pipeline().addLast(

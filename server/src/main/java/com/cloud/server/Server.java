@@ -13,13 +13,31 @@ import io.netty.handler.codec.serialization.ClassResolvers;
 import io.netty.handler.codec.serialization.ObjectDecoder;
 import io.netty.handler.codec.serialization.ObjectEncoder;
 
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.util.Properties;
+
 public class Server {
 
     private static final int maxObjectSize = 101 * 1024 * 1024;
-    private static final int inetPort = 8189;
+    private static int inetPort = 8189;
 
     public void run() throws Exception {
 
+        Properties props = new Properties();
+        try {
+            props.load(new FileInputStream("app.properties"));
+            if (props.getProperty("port") == null) {
+                props.setProperty("port", Integer.toString(inetPort));
+                props.store(new FileOutputStream("app.properties"), null);
+            } else {
+                inetPort = Integer.parseInt(props.getProperty("port"));
+            }
+
+        } catch (IOException ex) {
+            ex.printStackTrace();
+        }
         EventLoopGroup mainGroup = new NioEventLoopGroup();
         EventLoopGroup workerGroup = new NioEventLoopGroup();
         try {

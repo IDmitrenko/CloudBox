@@ -238,6 +238,7 @@ public class MainHandler extends ChannelInboundHandlerAdapter {
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
         cause.printStackTrace();
+        // удалить сесию пользователя
         ctx.close();
     }
 
