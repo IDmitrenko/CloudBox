@@ -25,19 +25,8 @@ public class Server {
 
     public void run() throws Exception {
 
-        Properties props = new Properties();
-        try {
-            props.load(new FileInputStream("app.properties"));
-            if (props.getProperty("port") == null) {
-                props.setProperty("port", Integer.toString(inetPort));
-                props.store(new FileOutputStream("app.properties"), null);
-            } else {
-                inetPort = Integer.parseInt(props.getProperty("port"));
-            }
+        getProperties();
 
-        } catch (IOException ex) {
-            ex.printStackTrace();
-        }
         EventLoopGroup mainGroup = new NioEventLoopGroup();
         EventLoopGroup workerGroup = new NioEventLoopGroup();
         try {
@@ -60,6 +49,22 @@ public class Server {
         } finally {
             mainGroup.shutdownGracefully();
             workerGroup.shutdownGracefully();
+        }
+    }
+
+    private void getProperties() {
+        Properties props = new Properties();
+        try {
+            props.load(new FileInputStream("app.properties"));
+            if (props.getProperty("port") == null) {
+                props.setProperty("port", Integer.toString(inetPort));
+                props.store(new FileOutputStream("app.properties"), null);
+            } else {
+                inetPort = Integer.parseInt(props.getProperty("port"));
+            }
+
+        } catch (IOException ex) {
+            ex.printStackTrace();
         }
     }
 

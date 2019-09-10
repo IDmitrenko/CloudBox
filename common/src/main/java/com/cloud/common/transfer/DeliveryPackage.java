@@ -1,15 +1,12 @@
 package com.cloud.common.transfer;
 
-import java.io.IOException;
-import java.nio.file.Path;
-
 public class DeliveryPackage extends AbstractMessage {
     private int partsCount;
     private int partNumber;
     private String fileName;
     private String userName;
 
-    public DeliveryPackage(String fileName, String userName, int partNumber, int partsCount) throws IOException {
+    public DeliveryPackage(String fileName, String userName, int partNumber, int partsCount) {
         this.partsCount = partsCount;
         this.partNumber = partNumber;
         this.fileName = fileName;

@@ -40,28 +40,24 @@ public class MainHandler extends ChannelInboundHandlerAdapter {
         try {
             if (msg != null) {
 
-                if (msg instanceof BigFileMessage) {
-                    writeBigFileMessage(ctx, (BigFileMessage) msg);
-                } else if (msg instanceof FileMessage) {
-                    writeFileMessage(ctx, (FileMessage) msg);
-                }
-
                 if (!authorized) {
                     if (msg instanceof AuthMessage) {
                         authentication(ctx, (AuthMessage) msg);
                     }
                 }
 
-                if (msg instanceof DeliveryPackage) {
-                    DeliveryPackage dp = (DeliveryPackage) msg;
-                    int partNumber = dp.getPartNumber();
-                    logger.info("Пришло подтверждение клиента "  + clientName + " о приеме части " +
-                            partNumber + " файла " + dp.getFileName());
-                    waitingPackageDelivery(true);
-                }
-
                 if (msg instanceof CommandMessage) {
                     readCommandMessage(ctx, (CommandMessage) msg);
+                }
+
+                if (msg instanceof BigFileMessage) {
+                    writeBigFileMessage(ctx, (BigFileMessage) msg);
+                } else if (msg instanceof FileMessage) {
+                    writeFileMessage(ctx, (FileMessage) msg);
+                }
+
+                if (msg instanceof DeliveryPackage) {
+                    confirmationFromCustomer((DeliveryPackage) msg);
                 } else {
                     ctx.fireChannelRead(msg);
                 }
@@ -72,24 +68,42 @@ public class MainHandler extends ChannelInboundHandlerAdapter {
         }
     }
 
+    private void confirmationFromCustomer(DeliveryPackage msg) {
+        DeliveryPackage dp = msg;
+        int partNumber = dp.getPartNumber();
+        logger.info("Пришло подтверждение клиента " + clientName + " о приеме части " +
+                partNumber + " файла " + dp.getFileName());
+        waitingPackageDelivery(true);
+    }
+
     private void writeBigFileMessage(ChannelHandlerContext ctx, BigFileMessage msg) throws IOException {
         logger.info("Пришла для записи " + msg.getPartNumber() + " часть файла " + msg.getFilename());
         if (msg.getPartNumber() == 1) {
             deleteFile(msg.getFilename());
         }
-        File file = new File(rootPath + clientName + "/" + msg.getFilename());
-        RandomAccessFile ra = new RandomAccessFile(file, "rw");
-        ra.seek(file.length());
-        ra.write(msg.getData());
-        ra.close();
+        writePartitionFile(msg);
+
         if (msg.getPartsCount() == msg.getPartNumber()) {
             ServerUtilities.sendFileList(ctx.channel(), clientName);
         }
+        sendDeliveryPackage(ctx, msg);
+
+    }
+
+    private void sendDeliveryPackage(ChannelHandlerContext ctx, BigFileMessage msg) {
         // sent a message about the delivery of the package
         DeliveryPackage dp = new DeliveryPackage(msg.getFilename(), clientName, msg.getPartNumber(), msg.getPartsCount());
         ctx.writeAndFlush(dp);
         logger.info("Отправили подтверждение пользователю " + clientName +
                 " о приеме части " + msg.getPartNumber() + " файла " + msg.getFilename());
+    }
+
+    private void writePartitionFile(BigFileMessage msg) throws IOException {
+        File file = new File(rootPath + clientName + "/" + msg.getFilename());
+        RandomAccessFile ra = new RandomAccessFile(file, "rw");
+        ra.seek(file.length());
+        ra.write(msg.getData());
+        ra.close();
     }
 
     private void deleteFile(String nameFile) {
@@ -186,12 +200,7 @@ public class MainHandler extends ChannelInboundHandlerAdapter {
         logger.info("Открыли файл " + path.getFileName() +
                 ". Размер - " + fileSize + ". Состоит из " + partsCount + " частей.");
         while (currentPosition < fileSize) {
-            byte[] data;
-            if ((fileSize - currentPosition) > Integer.MAX_VALUE) {
-                data = new byte[largeFileSize];
-            } else {
-                data = new byte[Math.min(largeFileSize, (int) (fileSize - currentPosition))];
-            }
+            byte[] data = lengthDeterminationPart(fileSize, currentPosition);
             ra.seek(currentPosition);
             int readBytes = ra.read(data);
             partNumber++;
@@ -209,12 +218,15 @@ public class MainHandler extends ChannelInboundHandlerAdapter {
         ra.close();
     }
 
-/*
-    @Override
-    public void channelReadComplete(ChannelHandlerContext ctx) throws Exception {
-        ctx.flush();
+    private byte[] lengthDeterminationPart(long fileSize, long currentPosition) {
+        byte[] data;
+        if ((fileSize - currentPosition) > Integer.MAX_VALUE) {
+            data = new byte[largeFileSize];
+        } else {
+            data = new byte[Math.min(largeFileSize, (int) (fileSize - currentPosition))];
+        }
+        return data;
     }
-*/
 
     public void packageDeliveries() {
         synchronized (lock) {
@@ -241,12 +253,5 @@ public class MainHandler extends ChannelInboundHandlerAdapter {
         // удалить сесию пользователя
         ctx.close();
     }
-
-/*
-    @Override
-    public void channelInactive(ChannelHandlerContext ctx) throws Exception {
-        super.channelInactive(ctx);
-    }
-*/
 
 }

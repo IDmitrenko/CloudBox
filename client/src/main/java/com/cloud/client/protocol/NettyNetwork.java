@@ -38,16 +38,19 @@ public class NettyNetwork {
     private static final Logger logger = LogManager.getLogger(NettyNetwork.class.getName());
 
     private ListFileReciever listFileReciever;
+
     public void setListFileReciever(ListFileReciever listFileReciever) {
         this.listFileReciever = listFileReciever;
     }
 
     private JFrame mainFrame;
+
     public void setMainFrame(JFrame mainFrame) {
         this.mainFrame = mainFrame;
     }
 
     private ExecutorService executorService;
+
     public void setExecutorService(ExecutorService executorService) {
         this.executorService = executorService;
     }
@@ -66,6 +69,7 @@ public class NettyNetwork {
     }
 
     private Channel currentChannel;
+
     public Channel getCurrentChannel() {
         return currentChannel;
     }
@@ -85,25 +89,7 @@ public class NettyNetwork {
 
     public void start() {
 
-        Properties props = new Properties();
-        try {
-            props.load(new FileInputStream("app.properties"));
-            if (props.getProperty("hostName") == null) {
-                props.setProperty("hostName", hostName);
-                props.store(new FileOutputStream("app.properties"), null);
-            } else {
-                hostName = props.getProperty("hostName");
-            }
-            if (props.getProperty("port") == null) {
-                props.setProperty("port", Integer.toString(port));
-                props.store(new FileOutputStream("app.properties"), null);
-            } else {
-                port = Integer.parseInt(props.getProperty("port"));
-            }
-
-        } catch (IOException ex) {
-            ex.printStackTrace();
-        }
+        getProperties();
 
         EventLoopGroup group = new NioEventLoopGroup();
         try {
@@ -134,6 +120,28 @@ public class NettyNetwork {
         }
     }
 
+    private void getProperties() {
+        Properties props = new Properties();
+        try {
+            props.load(new FileInputStream("app.properties"));
+            if (props.getProperty("hostName") == null) {
+                props.setProperty("hostName", hostName);
+                props.store(new FileOutputStream("app.properties"), null);
+            } else {
+                hostName = props.getProperty("hostName");
+            }
+            if (props.getProperty("port") == null) {
+                props.setProperty("port", Integer.toString(port));
+                props.store(new FileOutputStream("app.properties"), null);
+            } else {
+                port = Integer.parseInt(props.getProperty("port"));
+            }
+
+        } catch (IOException ex) {
+            ex.printStackTrace();
+        }
+    }
+
     public void authorize(AuthMessage am) throws IOException,
             AuthException, InterruptedException {
         sendMsg(am);
@@ -161,7 +169,7 @@ public class NettyNetwork {
     public void waitingPackageDelivery(boolean isDeliveried) {
         isPackage = isDeliveried;
         synchronized (lock) {
-                lock.notify();
+            lock.notify();
         }
     }
 
@@ -221,26 +229,30 @@ public class NettyNetwork {
             bfbp = new BigFileProgressBar(mainFrame);
             bfbp.setPreviousValue(0);
         }
-        File file = new File(rootPath + "/" + msg.getFilename());
-        RandomAccessFile ra = new RandomAccessFile(file, "rw");
-        ra.seek(file.length());
-        ra.write(msg.getData());
-        ra.close();
-        final int setValue = (100 * partNumber) / msg.getPartsCount();
-        if (setValue > bfbp.getPreviousValue()) {
-            SwingUtilities.invokeLater(new Runnable() {
-                @Override
-                public void run() {
-                    bfbp.setProgressBar(setValue);
-                }
-            });
-            bfbp.setPreviousValue(setValue);
-        }
+        writePartitionFile(msg);
+
+        setProgressBar(bfbp, partNumber, msg.getPartsCount());
+
         if (msg.getPartsCount() == partNumber) {
             TimeUnit.SECONDS.sleep(1L);
             clientListFile();
             bfbp.close();
         }
+
+        sendDeliveryPackage(ctx, msg);
+
+    }
+
+    private void writePartitionFile(BigFileMessage msg) throws IOException {
+        // можно писать в файл по номеру части, тогда очередность приема не имеет значения
+        File file = new File(rootPath + "/" + msg.getFilename());
+        RandomAccessFile ra = new RandomAccessFile(file, "rw");
+        ra.seek(file.length());
+        ra.write(msg.getData());
+        ra.close();
+    }
+
+    private void sendDeliveryPackage(ChannelHandlerContext ctx, BigFileMessage msg) {
         // sent a message about the delivery of the package
         DeliveryPackage dp = new DeliveryPackage(msg.getFilename(), MainWindow.getUserName(), msg.getPartNumber(), msg.getPartsCount());
         ctx.writeAndFlush(dp);
@@ -275,32 +287,18 @@ public class NettyNetwork {
         logger.info("Открыли файл " + path.getFileName() +
                 ". Размер - " + fileSize + ". Состоит из " + partsCount + " частей.");
         while (currentPosition < fileSize) {
-            byte[] data;
-            if ((fileSize - currentPosition) > Integer.MAX_VALUE) {
-                data = new byte[largeFileSize];
-            } else {
-                data = new byte[Math.min(largeFileSize, (int) (fileSize - currentPosition))];
-            }
+            byte[] data = lengthDeterminationPart(fileSize, currentPosition);
+
             ra.seek(currentPosition);
             int readBytes = ra.read(data);
             partNumber++;
             BigFileMessage filePart = new BigFileMessage(path, MainWindow.getUserName(), partNumber, partsCount, data);
-
             sendMsg(filePart);
             logger.info("Отправили для записи " + partNumber + " часть файла " + path.getFileName());
             currentPosition += readBytes;
             TimeUnit.SECONDS.sleep(1L);
 
-            final int setValue = (100 * partNumber) / partsCount;
-            if (setValue > bfpb.getPreviousValue()) {
-                SwingUtilities.invokeLater(new Runnable() {
-                    @Override
-                    public void run() {
-                        bfpb.setProgressBar(setValue);
-                    }
-                });
-                bfpb.setPreviousValue(setValue);
-            }
+            setProgressBar(bfpb, partNumber, partsCount);
 // механизм подтверждения, что данный пакет получен другой стороной
             packageDeliveries();
             logger.info("partNumber = " + partNumber + "; partsCount = " + partsCount);
@@ -310,6 +308,29 @@ public class NettyNetwork {
             }
         }
         ra.close();
+    }
+
+    private void setProgressBar(BigFileProgressBar bfpb, int partNumber, int partsCount) {
+        final int setValue = (100 * partNumber) / partsCount;
+        if (setValue > bfpb.getPreviousValue()) {
+            SwingUtilities.invokeLater(new Runnable() {
+                @Override
+                public void run() {
+                    bfpb.setProgressBar(setValue);
+                }
+            });
+            bfpb.setPreviousValue(setValue);
+        }
+    }
+
+    private byte[] lengthDeterminationPart(long fileSize, long currentPosition) {
+        byte[] data;
+        if ((fileSize - currentPosition) > Integer.MAX_VALUE) {
+            data = new byte[largeFileSize];
+        } else {
+            data = new byte[Math.min(largeFileSize, (int) (fileSize - currentPosition))];
+        }
+        return data;
     }
 
     public void sendSmallFile(Path path) throws IOException {

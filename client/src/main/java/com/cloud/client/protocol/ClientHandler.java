@@ -48,11 +48,7 @@ public class ClientHandler extends ChannelInboundHandlerAdapter {
                 }
 
                 if (msg instanceof DeliveryPackage) {
-                    DeliveryPackage dp = (DeliveryPackage) msg;
-                    int partNumber = dp.getPartNumber();
-                    logger.info("Пришло подтверждение сервера о приеме части " +
-                            partNumber + " файла " + dp.getFileName());
-                    nettyNetwork.waitingPackageDelivery(true);
+                    confirmationFromServer((DeliveryPackage) msg);
                 }
 
                 if (msg instanceof FileListMessage) {
@@ -69,12 +65,13 @@ public class ClientHandler extends ChannelInboundHandlerAdapter {
         }
     }
 
-/*
-    @Override
-    public void channelReadComplete(ChannelHandlerContext ctx) throws Exception {
-        ctx.flush();
+    private void confirmationFromServer(DeliveryPackage msg) {
+        DeliveryPackage dp = msg;
+        int partNumber = dp.getPartNumber();
+        logger.info("Пришло подтверждение сервера о приеме части " +
+                partNumber + " файла " + dp.getFileName());
+        nettyNetwork.waitingPackageDelivery(true);
     }
-*/
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
@@ -82,10 +79,4 @@ public class ClientHandler extends ChannelInboundHandlerAdapter {
         super.exceptionCaught(ctx, cause);
     }
 
-/*
-    @Override
-    public void channelInactive(ChannelHandlerContext ctx) throws Exception {
-        super.channelInactive(ctx);
-    }
-*/
 }

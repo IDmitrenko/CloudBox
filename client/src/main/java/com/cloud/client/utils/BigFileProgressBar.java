@@ -26,7 +26,7 @@ public class BigFileProgressBar extends JFrame {
         panel.add(BorderLayout.CENTER, progressBar);
         panel.setBorder(BorderFactory.createEmptyBorder(BOR, BOR, BOR, BOR));
         panel.add(Box.createVerticalGlue());
-        panel.setSize(600, 50 );
+        panel.setSize(600, 50);
 
         frame.getContentPane().setLayout(new BorderLayout());
         frame.getContentPane().add(panel, BorderLayout.CENTER);

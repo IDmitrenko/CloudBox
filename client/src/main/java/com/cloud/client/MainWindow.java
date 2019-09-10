@@ -173,11 +173,6 @@ public class MainWindow extends JFrame implements ListFileReciever {
             @Override
             public void actionPerformed(ActionEvent e) {
                 String nameFile = arrServer[tableServer.getSelectedRow()][0].toString();
-/*
-                String str = arrServer[tableServer.getSelectedRow()][1].toString();
-                String[] subStr = str.split(" ");
-                long fileSize = Long.parseLong(subStr[0].trim());
-*/
                 downloadFileFromServer(nameFile);
             }
         });
